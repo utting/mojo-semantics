@@ -1,6 +1,30 @@
+# A Formal Semantics for Mojo (Micro-Mojo) with Regions
 
 ## 2026-10-08: Mojo Ownership Semantics
 > try to formalise the memory management ideas in https://gist.github.com/nmsmith/cdaa94aa74e8e0611221e65db8e41f7b?permalink_comment_id=5940284 using Isabelle2025-2.  Explain your decisions and rationale in text comments in your generated *.thy file.  Mention possible alternatives where they exist.
+
+Summary
+
+I formalized the memory-management proposal from nmsmith's gist (including the crucial comment-thread clarifications) in Mojo_Region_Model.thy, a 1173-line Isabelle2025-2 theory that compiles cleanly with zero errors/warnings/sorries. Structure:
+
+Part 1 — Regions as sets of variables. A mojo_regions locale parameterized by an ownership function owner :: 'l ⇒ 'l option. Defines footprint/region_footprint and two disjointness notions — set_disjoint vs. mem_disjoint — because the comment thread (verdagon/seanbaxter/nmsmith) revealed the gist's main text conflates them. Proves the "forest" theorem: well-formed regions (Rule 1) have pairwise-disjoint footprints, via a from-scratch linearity lemma about ownership chains. A worked Thing/ThingX instantiation reproduces the {thing} vs {thing.x} counterexample from comment 5278470 exactly.
+
+Part 2 — Dereference safety. safe_to_deref models "reject if any region member may be uninitialized," with a soundness lemma and a replay of the gist's own x/y/reinit example.
+
+Part 3 — Dynamic containers. A generation-counter model (Shape vs. Item operations) proves pointers survive item-only mutation but die on any shape change, regardless of position — formalizing "mutating items without mutating the entire buffer."
+
+Part 4 — Aliasing-xor-mutability on regions (Rule 2). The centerpiece: copy_step models name[] = value[], deinitializing a target's whole footprint before reading the sourcever gets stuck (sufficiency) and that a region can never be mem_disjoint from itself when nonempty, with a matching failure lemma (necessity) — reconstructing both the
+set_names and p1[]=p2[] examples.
+
+Part 5 — Mutation as effect. subsumes formalizes " and contrasts read_step (unconditionallyalias-safe) against copy_step (needs mem_disjoint) to explain why reads are free but mutation isn't.
+
+Final section is pure commentary connecting every open question back to source material: the Variant/InlineFixedVector open
+questions, Rust's NLL as a rejected alternative frestingly — MattPD's InvalML pointer (OOPSLA 2025)and nmsmith's own admission that InvalML can't express first-class pointers into dynamic containers, which is exactly why Part
+3 is built the way it is.
+
+Every design decision and alternative-not-taken it ‹...› blocks. The file is at/Users/uqmuttin/git/rust/mojo-semantics/Mojo_Region_Model.thy.
+
+✻ Cooked for 56m 49s · done 9:11 am
 
 
 ## 2026-10-30: Micro-Mojo Semantics
@@ -326,6 +350,170 @@ Things to know
 - Simp snag, now explained. This is the same failure that hit the region theory's demo. Unfolding the owner function's definition rewrites the locale parameter into a λ-term, after which the interpreted recursion equations stop matching. The fix is to simplify with an applied-form lemma (path_owner_Pair) instead of the definition.
 
 Next is the well-formedness judgement together with the ASAP elaboration that inserts the DROPs. Its soundness theorem would be "well-formed programs never produce an ownership error".
+
+
+> keep going
+
+
+Next up is the well-formedness checker and the ASAP elaboration. The checker needs String and None types, so I'll first add TStr and TNone to the syntax.
+
+  Called isabelle-pide-mcp
+
+The static theory has three parts: typing, an ownership checker covering moves, references, exclusivity and mutability, and an ASAP elaboration proven to insert only drops. I'm starting with the typing and the checker.
+
+  Called isabelle-pide-mcp 3 times
+
+The semantics theory is reprocessing after the syntax change, so I'll wait for it.
+
+  Ran 1 shell command
+
+I'm waiting for the semantics theory to reprocess before checking the new typing functions.
+
+✻ Brewed for 8m 23s · done 2:41 pm · 1 shell still running
+
+⏺ Background command "Wait for dependent theories to reprocess" completed (exit code 0)
+
+  Called isabelle-pide-mcp
+
+Typing compiles. Now appending the ownership checker.
+
+  Called isabelle-pide-mcp 2 times, ran 1 shell command
+
+Waiting for the expression checker to be processed.
+
+✻ Crunched for 53s · done 2:43 pm · 1 shell still running
+
+⏺ Background command "Wait for checker definitions to process" completed (exit code 0)
+
+  Called isabelle-pide-mcp
+
+The parse errors come from using o as a variable name: in HOL it's ASCII syntax for function composition. Renaming it and quoting the antiquotations.
+
+
+While the expression checker processes, I'll prepare the statement checker and the elaboration.
+
+  Ran 1 shell command
+
+Waiting on the expression checker before adding the statement checker.
+
+✻ Cooked for 40s · done 2:44 pm
+
+⏺ Background command "Wait for checker functions" completed (exit code 0)
+
+  Called isabelle-pide-mcp
+
+The expression checker compiles. Now the statement checker (with the loop fixpoint and an explicit termination measure) and the function/program-level checks.
+
+  Called isabelle-pide-mcp 2 times, ran 1 shell command
+
+Waiting for the statement checker and its termination proof.
+
+✻ Cooked for 1m 5s · done 2:46 pm
+
+⏺ Background command "Wait for statement checker to process" completed (exit code 0)
+
+  Called isabelle-pide-mcp
+
+The statement checker and its termination proof go through. The remaining errors are an invalid variable name (where_) and antiquotation quoting.
+
+
+  Called isabelle-pide-mcp
+
+Now I'll run the checker on all the examples to see its verdicts.
+
+  Called isabelle-pide-mcp, ran 1 shell command
+
+Waiting for the checker to run on the examples.
+
+✻ Brewed for 26s · done 2:47 pm
+
+⏺ Background command "Wait for the checker runs" completed (exit code 0)
+
+  Called isabelle-pide-mcp
+
+All ten verdicts came back correct on the first run, with the six valid programs accepted and the invalid ones rejected with the expected messages. Since each value takes about 10 seconds to generate, I'll later merge them into one lemma, and next I'm turning to the ASAP elaboration and the "only inserts drops" theorem.
+
+  Called isabelle-pide-mcp, ran 1 shell command
+
+Waiting for the elaboration definitions and the theorem to process.
+
+✻ Sautéed for 51s · done 2:48 pm
+
+⏺ Background command "Wait for elaboration definitions" completed (exit code 0)
+
+  Called isabelle-pide-mcp
+
+Same kind of clash: O is HOL's infix for relation composition. Renaming the parameter to Os in that section.
+
+
+Waiting for the static theory to reprocess with the renamed parameter.
+
+✻ Baked for 23s · done 2:49 pm
+
+⏺ Background command "Wait for reprocessing" completed (exit code 0)
+
+  Called isabelle-pide-mcp
+
+Everything checks, including elab_only_inserts_drops. Now I'll add a dangling-reference example and see what elaboration produces on the examples.
+
+  Called isabelle-pide-mcp, ran 1 shell command
+
+Waiting for the elaboration and run results.
+
+✻ Crunched for 22s · done 2:50 pm
+
+────────────────────────────────────────────────────────── 4 new messages ───────────────────────────────────────────────────────────
+
+⏺ Background command "Wait for example evaluations" completed (exit code 0)
+
+  Called isabelle-pide-mcp
+
+All four checks matched what was intended: elaborating ex1 reproduces the hand-written version, DROP r sits inside the loop in ex5, ex8 is caught statically and fails with ErrDangling at run time, and the output follows Mojo's ASAP destruction order. I'm now turning these into checked lemmas.
+
+  Called isabelle-pide-mcp, ran 1 shell command
+
+The edit didn't match. I'll re-read the exact text.
+
+  Called isabelle-pide-mcp 2 times
+
+I'll check these once the background wait finishes.
+
+✻ Worked for 45s · done 2:52 pm
+
+⏺ Background command "Wait for example lemmas" completed (exit code 0)
+
+  Called isabelle-pide-mcp
+
+All lemmas pass. Adding the new theory to ROOT and running the batch build.
+
+
+I've added the well-formedness checker and the ASAP elaboration in a new theory, Micro_Mojo_Static.thy. All four theories build cleanly as the Mojo_Semantics session, with no sorrys. To support typing I added TStr and TNone to the syntax's types.
+
+Ownership checker (check_prog)
+- It works like Mojo's lifetime checker: it tracks, statement by statement, which owned variables are initialized, which references may be invalidated, and which out self fields are set. Branches are merged and loops are iterated until the state is stable.
+- On top of that it checks typing, implicit copies of non-trivial values, moves, mutation through imm arguments, argument exclusivity, interior-origin invalidation, field initialization in __init__, and that a returned reference stays within its declared ref[...] origin.
+- It reuses the region theory:
+  - Each reference binding carries an origin, which is a region.
+  - Using a reference requires every owned variable in its origin to be initialized; that's safe_to_deref.
+  - Exclusivity compares the origins of borrowed arguments; that's Rule 2.
+
+ASAP elaboration (elaborate)
+- A backward liveness pass inserts DROP x after each owned variable's last use. Using a reference counts as using every variable in its origin, which is Mojo's lifetime extension.
+- elab_only_inserts_drops is proved: removing DROPs from the elaborated program gives back the original.
+
+Results on the examples, all checked by eval
+- The checker accepts the six valid programs and rejects each invalid one with the matching Mojo error: use after move, invalidated reference, uninitialized field, argument exclusivity, and a new example (ex8) where a reference to a local escapes. That last one fails with ErrDangling at run time.
+- Elaborating Example 1 gives exactly the hand-written ex1_asap_main.
+- Every accepted program, once elaborated, runs without error and prints Mojo's destruction order.
+
+Simplifications compared with Mojo (stated in the theory):
+- Variable names must be distinct within a function.
+- Only owned locals can be moved with ^.
+- A var argument without ^ must have a trivial type.
+- l[i] and l[j] are always treated as overlapping.
+- Drops are inserted per statement, not inside expressions.
+
+Next: the soundness theorem, "if check_prog P = [] then run n (elaborate P) never gives an ownership error", is still only tested on the examples. Proving it needs a relation between abstract and concrete states, with invariants for initialization, valid references, and disjoint borrowed arguments. It is a much larger proof than anything so far, and the obvious first piece is soundness for expressions.
 
 
 

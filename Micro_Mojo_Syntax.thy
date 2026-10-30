@@ -69,7 +69,12 @@ type_synonym vname = string   \<comment> \<open>variables and parameters\<close>
 type_synonym fname = string   \<comment> \<open>struct fields\<close>
 type_synonym name = string    \<comment> \<open>functions, methods and structs\<close>
 
-datatype ty = TInt | TBool | TStruct name | TList ty
+text \<open>
+  @{text TStr} is only the type of string literals (which may only be
+  printed), and @{text TNone} is the type of calls that return nothing.
+\<close>
+
+datatype ty = TInt | TBool | TStr | TNone | TStruct name | TList ty
 
 text \<open>
   Argument conventions. @{text "Out"} is only used for the @{text "self"}

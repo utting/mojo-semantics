@@ -5,3 +5,4 @@ session Mojo_Semantics = HOL +
     Mojo_Region_Model
     Micro_Mojo_Syntax
     Micro_Mojo_Semantics
+    Micro_Mojo_Static
