@@ -1,30 +1,6 @@
-# A Formal Semantics for Mojo (Micro-Mojo) with Regions
 
 ## 2026-10-08: Mojo Ownership Semantics
 > try to formalise the memory management ideas in https://gist.github.com/nmsmith/cdaa94aa74e8e0611221e65db8e41f7b?permalink_comment_id=5940284 using Isabelle2025-2.  Explain your decisions and rationale in text comments in your generated *.thy file.  Mention possible alternatives where they exist.
-
-Summary
-
-I formalized the memory-management proposal from nmsmith's gist (including the crucial comment-thread clarifications) in Mojo_Region_Model.thy, a 1173-line Isabelle2025-2 theory that compiles cleanly with zero errors/warnings/sorries. Structure:
-
-Part 1 — Regions as sets of variables. A mojo_regions locale parameterized by an ownership function owner :: 'l ⇒ 'l option. Defines footprint/region_footprint and two disjointness notions — set_disjoint vs. mem_disjoint — because the comment thread (verdagon/seanbaxter/nmsmith) revealed the gist's main text conflates them. Proves the "forest" theorem: well-formed regions (Rule 1) have pairwise-disjoint footprints, via a from-scratch linearity lemma about ownership chains. A worked Thing/ThingX instantiation reproduces the {thing} vs {thing.x} counterexample from comment 5278470 exactly.
-
-Part 2 — Dereference safety. safe_to_deref models "reject if any region member may be uninitialized," with a soundness lemma and a replay of the gist's own x/y/reinit example.
-
-Part 3 — Dynamic containers. A generation-counter model (Shape vs. Item operations) proves pointers survive item-only mutation but die on any shape change, regardless of position — formalizing "mutating items without mutating the entire buffer."
-
-Part 4 — Aliasing-xor-mutability on regions (Rule 2). The centerpiece: copy_step models name[] = value[], deinitializing a target's whole footprint before reading the sourcever gets stuck (sufficiency) and that a region can never be mem_disjoint from itself when nonempty, with a matching failure lemma (necessity) — reconstructing both the
-set_names and p1[]=p2[] examples.
-
-Part 5 — Mutation as effect. subsumes formalizes " and contrasts read_step (unconditionallyalias-safe) against copy_step (needs mem_disjoint) to explain why reads are free but mutation isn't.
-
-Final section is pure commentary connecting every open question back to source material: the Variant/InlineFixedVector open
-questions, Rust's NLL as a rejected alternative frestingly — MattPD's InvalML pointer (OOPSLA 2025)and nmsmith's own admission that InvalML can't express first-class pointers into dynamic containers, which is exactly why Part
-3 is built the way it is.
-
-Every design decision and alternative-not-taken it ‹...› blocks. The file is at/Users/uqmuttin/git/rust/mojo-semantics/Mojo_Region_Model.thy.
-
-✻ Cooked for 56m 49s · done 9:11 am
 
 
 ## 2026-10-30: Micro-Mojo Semantics
@@ -515,5 +491,575 @@ Simplifications compared with Mojo (stated in the theory):
 
 Next: the soundness theorem, "if check_prog P = [] then run n (elaborate P) never gives an ownership error", is still only tested on the examples. Proving it needs a relation between abstract and concrete states, with invariants for initialization, valid references, and disjoint borrowed arguments. It is a much larger proof than anything so far, and the obvious first piece is soundness for expressions.
 
+  NOTE: usage at this point was 589K/1m tokens.  I did /compact
+        Cost $29.30 
+
+Total cost:            $29.30
+Total duration (API):  1h 24m 41s
+Total duration (wall): 4d 4h 59m
+Total code changes:    8 lines added, 0 lines removed
+Usage by model:
+    claude-haiku-5-5:  25.0k input, 4.3k output, 0 cache read, 0 cache write ($0.0046)
+     claude-sonnet-5:  310 input, 164.0k output, 21.4m cache read, 273.3k cache write ($7.01)
+     claude-opus-5-5:  5.7k input, 196.2k output, 68.1m cache read, 589.7k cache write ($22.28)
+Prompt cache (main):   117 requests · 100% of input tokens from cache · no misses · warm (1h TTL, last activity 3m 47s ago)
+
+
+❯ prove soundness, starting with expressions
+
+
+Working out the invariant for expression soundness now. I've read the interpreter and the checker again, and next I'm starting a new Micro_Mojo_Soundness.thy.
+
+  Called isabelle-pide-mcp 3 times
+
+The new theory is loaded in Isabelle. Next I'm checking that the value-typing definitions are accepted.
+
+  Called isabelle-pide-mcp 4 times, ran 2 shell commands
+
+Isabelle is still reprocessing the checker theory, which the new file imports. While it runs, I'm writing the next part: lemmas about heap paths and the invariant.
+
+  Called isabelle-pide-mcp 5 times, ran 1 shell command
+
+I'm fixing two small errors in the new theory: a name clash with extend from the checker's ctx record, and a simp rule that loops.
+
+  Called isabelle-pide-mcp 10 times
+
+I'm proving the basic lemmas about the invariant one at a time. Each piece is checked before I go on to the main expression lemma.
+
+  Called isabelle-pide-mcp 10 times
+
+Proving that a call-free expression's checker only removes information from the abstract state. After that come the lemmas that read variables from the invariant.
+
+  Called isabelle-pide-mcp 12 times
+
+Fixing simplifier problems in the helper lemmas about when a place may be used. These lemmas feed the main induction for expressions.
+
+  Called isabelle-pide-mcp 8 times
+
+The helper lemmas all check. Next is the lemma that a move (x^) keeps the invariant, then the main induction.
+
+  Called isabelle-pide-mcp 10 times
+
+Three steps in the move lemma make the simplifier loop. I'm replacing them with explicit steps.
+
+  Called isabelle-pide-mcp 4 times
+
+The move lemma checks. Now I'm writing the main induction over the fuel, which covers places, expressions and expression lists together.
+
+
+  Called isabelle-pide-mcp 4 times
+
+The place-evaluation lemma is almost checked. One remaining step loops in the simplifier, and I'm rewriting it.
+
+  Called isabelle-pide-mcp 4 times
+
+sound_place_Suc is proved, so places are done. Next are the expression cases and the induction that ties them together.
+
+  Called isabelle-pide-mcp 11 times, ran 1 shell command
+
+Nearly every case of the expression lemma checks. Two steps are slow or loop in the simplifier, and I'm replacing them with explicit lemmas.
+
+  Called isabelle-pide-mcp 8 times
+
+The theory is clean with no sorrys. Last, I'm adding the soundness theorem for expressions and a closing section on what remains.
+
+  Called isabelle-pide-mcp 2 times
+
+Everything checks in Isabelle. Now I'm adding the theory to ROOT and running a batch build to confirm.
+
+
+I've proved soundness for expressions that contain no calls, in a new theory Micro_Mojo_Soundness.thy (about 970 lines, no sorrys). It's added to ROOT, and the whole session builds in batch (49 s). Nothing is committed.
+
+The theorem (expr_sound). Suppose an expression contains no calls, the checker accepts it (chk_expr returns Good σ'), it has type T, and it is evaluated in a state where the invariant holds. Then evaluation fails at most with ErrBounds. If it succeeds, the value has type T and the invariant holds again for σ'. The corollary expr_no_ownership_error states the part you asked for: no ownership error can occur.
+
+The result came out stronger than ownership safety, at almost no extra cost. To rule out ErrUninit the proof already needs values to be well typed, so ErrType and every other error except index-out-of-range are excluded as well.
+
+The invariant relates the checker's view to the run-time state:
+- Owned variables: each has its own root in the heap, holding a well-typed value if the checker says it is initialized, and a well-typed value or VUndef otherwise.
+- Borrowed parameters: each points to a well-typed value. The exception is out self in __init__, where only the fields the checker records as initialized need to be.
+- References: each points to a well-typed value whenever the checker would allow its use, i.e. it is not invalidated and its origin's owned variables are initialized. This is safe_to_deref from the region theory, used as an invariant.
+- Root exclusivity: an owned variable's root can be reached from no other variable, except from references whose origin includes it. This is what makes a move safe: x^ changes only x's root, and every reference that could see that root becomes unusable because x is no longer initialized.
+
+How the proof works.
+- A small Hoare-style predicate on interpreter results splits each do block of the interpreter step by step.
+- Places, expressions and expression lists are proved together by induction on the fuel. This is simpler than the 13-way induction rule the function package generates.
+
+A problem in the checker. The checker tracks initialized out fields in one shared set. An __init__ with a second out parameter y could set y.f and then read self.f while it is still uninitialized. Mojo allows only one out parameter, so chk_body should reject this. I've recorded it in the theory but haven't changed the checker yet. The expression proof doesn't depend on it, but setting up the invariant on function entry will.
+
+Still to do (listed in the theory's closing section):
+1. Statements: assignments and DROP change the heap at a place rather than a root, so the frame condition and root exclusivity need to work with paths.
+2. List methods: append and pop assign a new generation number to the list, which invalidates old references into it. The invariant needs the condition that every generation in the heap is below ngen.
+3. Calls: expressions and statements become mutually recursive, all proved by the same fuel induction. Argument exclusivity provides the disjointness the callee's invariant needs.
+4. Destruction: show that the inserted DROPs never leave a reference to a freed root, which is what rules out ErrDangling.
+
+Statements inside a single function are the natural next piece.
+
+
+
+> continue
+
+I found four more soundness gaps in the checker: list item assignment, writes through references to imm arguments, exclusivity for only mut arguments, and multiple out parameters. I'll fix the checker first, confirm the examples still get the same verdicts, then extend the invariant.
+
+  Called isabelle-pide-mcp 3 times, ran 1 shell command
+
+I've fixed the four checker gaps. One fix wasn't executable for eval, and I'm rewriting it with a helper function.
+
+  Called isabelle-pide-mcp, ran 1 shell command
+
+While Isabelle rechecks the checker, I'm rewriting the path invariant so each reference records its target variable and steps, and exclusivity covers every writable variable.
+
+
+The rewritten invariant compiles up to the place lemma. I'm now restating the place lemma so it returns a structured location: the base variable and the steps from it to the place.
+
+
+  Called isabelle-pide-mcp 2 times
+
+The fixed checker passes everything, including all the example verdicts. Now I'm checking the reworked soundness theory.
+
+  Called isabelle-pide-mcp
+
+Most of the new invariant proofs go through. I'm fixing seven small failures, mostly pair splitting and case splits on bindings.
+
+  Called isabelle-pide-mcp 3 times, ran 1 shell command
+
+Two proof steps in the reworked expression proof are slow, and I'm replacing them with explicit ones. After that comes the move case.
+
+Expression soundness is re-proved with the stronger invariant, and the theory is clean again. Next are lemmas about updating values along paths, which the assignment case needs.
+
+  Ran 1 shell command
+
+I'm putting statement soundness in a separate theory, Micro_Mojo_Soundness_Stmt.thy, so the expression proofs don't need re-checking on every edit.
+
+  Write(Micro_Mojo_Soundness_Stmt.thy)
+
+  Called isabelle-pide-mcp 8 times
+
+The lemmas about updating values along paths are being checked now. They're the basis for proving that assignment keeps the invariant.
+
+  Called isabelle-pide-mcp
+
+The update lemmas pass, except the general write-preservation lemma, which needs the invariant to also state that at most one out parameter is in scope; the checker now enforces this. I'm adding that to inv and re-checking the expression proofs next.
+
+  Called isabelle-pide-mcp 6 times
+
+The helper lemmas check. Now the central lemma: writing a well-typed value at a place under a writable base variable keeps the invariant.
+
+  Called isabelle-pide-mcp 2 times
+
+  Called isabelle-pide-mcp 3 times, ran 3 shell commands
+
+The write lemma is drafted. I'm fixing a variable named by, which is an Isar keyword, and two small proof steps.
+
+  Called isabelle-pide-mcp 5 times
+
+The write lemma is down to one case. I'm adding a small lemma so out self values carry over when the set of initialized fields stays the same.
+
+  Called isabelle-pide-mcp
+
+The general write lemma is done. I'm moving on to the building blocks for statements: the drop-a-value hypothesis, frame and weakening lemmas, end-of-block cleanup, and allocating new variables.
+
+  Called isabelle-pide-mcp 3 times
+
+  Called isabelle-pide-mcp 3 times, ran 1 shell command
+
+The cleanup lemma is nearly done. One step needs a helper fact: the roots owned by a block's variables are distinct.
+
+  Called isabelle-pide-mcp 2 times
+
+Block cleanup is proved. Next are the lemmas for declaring variables (var and ref) and for discarding a block's variables when it ends.
+
+  Called isabelle-pide-mcp 2 times
+
+  Called isabelle-pide-mcp 3 times
+
+Everything so far checks, about 990 commands. Next I'm proving that leaving a block (dropping its variables) restores the outer invariant, plus two static facts about the checker.
+
+  Called isabelle-pide-mcp 3 times
+
+  Called isabelle-pide-mcp 3 times
+
+The lemma for the end of a block is drafted. I'm reworking one sub-proof about distinct owned roots so it doesn't induct over a list the invariant also mentions.
+
+  Called isabelle-pide-mcp
+
+Leaving a block is proved. Next come the static facts about the checker (environments only grow, and the loop analysis reaches a fixpoint) and the helpers for drop followed by assignment.
+
+  Called isabelle-pide-mcp 3 times, ran 2 shell commands
+
+  Called isabelle-pide-mcp 2 times
+
+While Isabelle reprocesses, I'm planning the statement induction. I also need a small checker change so that var x: T without an initializer marks x as uninitialized, avoiding stale entries from earlier blocks.
+
+  Called isabelle-pide-mcp 4 times
+
+The static lemmas and the lemmas for out self are being checked. Next is the main induction over statements and blocks.
+
+  Called isabelle-pide-mcp
+
+The checker facts are all proved. Next is the assignment case: one lemma for each of the three kinds of assignment the checker distinguishes, all built on the general write lemma.
+
+  Called isabelle-pide-mcp 2 times
+
+The assignment proof is drafted. Most errors cascade from three small faults: a quantifier form, a missing spec rule, and a record type annotation. I'm fixing those first.
+
+
+  Called isabelle-pide-mcp 2 times
+
+I've hit the usage limit, so I'm stopping with the assignment case of statement soundness not yet finished. Micro_Mojo_Soundness_Stmt.thy currently has 2 failing proof steps (details below). Nothing is committed, and the new theory isn't in ROOT yet.
+
+What's done:
+- Four more checker gaps found and fixed in Micro_Mojo_Static.thy:
+  - Assigning a list item, or calling append on one, didn't invalidate references into nested lists. Assigning l[0] in a List[List[Int]] left a reference to l[0][1] live.
+  - A reference to an imm argument could be used to write to it.
+  - Argument exclusivity only checked mut, so a ref argument could alias an imm one.
+  - A function could have more than one out parameter.
+- Two refactors of the checker: var x: T with no initializer now marks x uninitialized, and the assignment check is split out into chk_assign. All the example lemmas still give the same results.
+- A stronger invariant in Micro_Mojo_Soundness.thy:
+  - Exclusivity is stated over paths, for every writable variable.
+  - Each reference records the variable it points into and the steps from it.
+  - Allocation is fresh, and at most one out parameter is in scope.
+  - Expression soundness is re-proved under this invariant, and the theory is clean.
+- New Micro_Mojo_Soundness_Stmt.thy, about 1490 lines, all clean except inside assign_core:
+  - lemmas about reading and updating values along paths;
+  - inv_write, the main lemma: writing a well-typed value at a place keeps the invariant, given the checker's invalidations;
+  - frame and weakening lemmas, used for if joins and the loop fixpoint;
+  - cleanup at the end of a block;
+  - declaring var and ref variables, and leaving a block;
+  - the facts that the checker only extends environments and that its loop analysis reaches a fixpoint;
+  - an initializer lemma, and three lemmas for writing into out self.
+
+Dropping a value can run __deinit__ code, which is a call. In this theory that is an assumption, sound_drop, which the part on calls will have to prove.
+
+The 2 failures, both in assign_core:
+- In the out self field case, the final step lets the simplifier unfold drop_path itself. It should reduce only eval_place and then reuse the proved fact t.
+- In the owned-root case, update_typed needs w0 = w substituted first.
+
+Still to do:
+1. Fix the two steps above.
+2. Write the stmt_post, sound_stmt and sound_block definitions and the fuel induction over all statement forms. The plan for each form is worked out.
+3. Add the new theory to ROOT and run a batch build.
+
+After that, calls are next, together with discharging sound_drop and list methods.
+
+⏺ Usage limit reached · continuing automatically at 5:50pm · esc to cancel
+
+✻ Baked for 34m 11s · done 4:19 pm
+
+❯ /rate-limit-options
+  ⎿  Claude Code will continue automatically at 5:50pm. Keep this session open; it may still pause for permission prompts. Press esc to cancel the wait.
+
+
+  Called isabelle-pide-mcp 3 times
+
+Picking up where the usage limit stopped me. I'm fixing the last failing steps in the assignment proof.
+
+  Called isabelle-pide-mcp
+
+The assignment lemma is proved. Next I'm writing the statement and block induction: the definitions plus one case per statement form.
+
+
+  Called isabelle-pide-mcp 2 times, ran 1 shell command
+
+The statement induction is written. Two redundant proof steps and one case split in the while case remain to fix.
+
+  Called isabelle-pide-mcp
+
+Nearly all statement cases now check. One step in the while case made the simplifier unroll the loop analysis, and I've replaced it.
+
+  Called isabelle-pide-mcp 2 times, ran 2 shell commands
+
+The batch build fails on one step: an automatic case split in the DROP case overflows the stack. I'm replacing it with explicit case analysis.
+
+  Called isabelle-pide-mcp 2 times
+
+Everything in the statement theory now checks in Isabelle. Before the batch build, I'm updating the explanatory text in the expression theory, which still describes the old invariant.
+
+Statement soundness is now proved for statements without calls, inside a single function. The whole session builds in batch with no sorrys (about 1 minute), and the new theory Micro_Mojo_Soundness_Stmt.thy (about 2,000 lines) is added to ROOT. One assumption remains: destroying a value can run __deinit__ code, which is a call. So dropping is taken as a hypothesis, sound_drop, which the part on calls will have to prove. Nothing is committed.
+
+The theorem (stmt_sound). Assume sound_drop. Take a statement without calls, accepted by the checker, run in a state where the invariant holds. Then it fails at most with an out-of-range index.
+- If it completes normally, the environment has only grown by its declarations, and the invariant holds for the checker's new state.
+- If it returns, the result has the declared type.
+
+How it is proved:
+- Assignment rests on one general lemma, inv_write: writing a well-typed value below a writable variable keeps the invariant. It relies on exclusivity, on each reference recording which variable it points into, and on the checker's invalidations. Initializing a field of out self is handled too.
+- if and while: the invariant still holds after the checker merges branch states, and the checker's loop analysis reaches a state that every iteration preserves.
+- Blocks: leaving a block destroys its owned variables, and the invariant for the enclosing block holds again.
+- The induction is over the fuel, proving statements and blocks together. The expression results from last time are reused at every fuel.
+
+Checker changes, all needed for soundness. I've stated each one in the theory text, and all the example programs still get the same verdicts:
+1. Assigning to a place, or mutating a list, now invalidates references into the lists inside it unless its type is trivial. Assigning l[0] in a List[List[Int]] used to leave a reference to l[0][1] live.
+2. A reference to an imm argument can no longer be used to write to it.
+3. Argument exclusivity now covers ref and out arguments, not just mut.
+4. A function may have at most one out parameter.
+5. var x: T with no initializer marks x uninitialized, and assignment checking is moved into its own function, chk_assign.
+
+Invariant changes. To support statements I strengthened the invariant in Micro_Mojo_Soundness.thy:
+- exclusivity is now stated over paths for every writable variable, not just owned roots;
+- each reference records which variable it points into and the steps from there;
+- allocation is fresh;
+- names are distinct, and at most one out parameter is in scope.
+
+I re-proved expression soundness under the new invariant.
+
+Still to do (listed at the end of the new theory):
+- Calls. Build the callee's invariant from the arguments, and restore the caller's after return. This needs a frame condition on statements.
+- List methods. The invariant must also say that every list generation in the heap is below ngen.
+- Destruction. Prove sound_drop in the same fuel induction as calls.
+- Elaboration. Show that the inserted DROPs keep a program accepted by the checker.
+
+
+> /compact  (637K tokens down to 43.4k)
+> continue
+
+
+  Searched for 2 patterns, ran 4 shell commands
+
+Next I'm starting on calls: re-reading the invariant definitions to plan how the frame condition and the callee's invariant fit together.
+
+  Searched for 1 pattern, ran 5 shell commands
+
+I'm still working on the calls proof. I found the checker accepts calls where an argument mutates a place already evaluated, such as g(l[0], f(l)), which Mojo rejects and which fails at run time. I'll close that gap in the checker first, then return to the calls proof.
+
+  Ran 7 shell commands
+
+The plan for calls is settled, and I've found seven checker gaps that can let accepted programs fail at run time, including borrow conflicts, returned references, and unchecked __init__ and self parameters. I'm applying the checker fixes now.
+
+  Ran 3 shell commands
+
+Checker edits applied; now building to check that the examples and earlier proofs still go through.
+
+  Called isabelle-pide-mcp 2 times, ran 2 shell commands
+
+Started the new theory Micro_Mojo_Soundness_Calls.thy, beginning with lemmas about well-formed programs; checking it in Isabelle now.
+
+  Called isabelle-pide-mcp 3 times
+
+  Called isabelle-pide-mcp 5 times
+
+The well-formedness part checks cleanly. Next I'm adding the "frame" notion (what a callee may change) and its basic lemmas.
+
+  Called isabelle-pide-mcp 8 times
+
+vagree_vt is now proven: a changed value keeps its type when each changed part does. I'm moving on to the heap-level frame lemmas and inv_chg, the general lemma that restores the invariant after a call or assignment.
+
+
+  Called isabelle-pide-mcp 4 times
+
+The heap frame lemmas are proven. Now writing inv_chg.
+
+
+  Called isabelle-pide-mcp 7 times
+
+The helper lemmas are proven. Writing inv_chg itself now; it checks every kind of binding: owned, borrowed, out self, and references.
+
+  Called isabelle-pide-mcp 8 times
+
+The inv_chg lemma is proven; it covers writes, calls and list mutation. Next I'll handle frame bookkeeping, the lemmas about places in flight, and the checker's static facts, then the per-construct soundness proofs.
+
+  Called isabelle-pide-mcp 6 times
+
+Frame lemmas are done. Next: static facts (the checker only weakens the abstract state; exclusivity facts), then the definitions for the main induction.
+
+  Called isabelle-pide-mcp 6 times
+
+Proving two checker facts: the abstract state only gets weaker through an expression, and a characterization of the exclusivity check. Waiting for the automation to finish.
+
+  Called isabelle-pide-mcp 14 times, ran 1 shell command
+
+Writing the proof script for the method-call case of the "abstract state only weakens" lemma; one automated step was too slow, so I'm replacing it.
+
+  Called isabelle-pide-mcp 10 times, ran 1 shell command
+
+Still proving the "abstract state only weakens" lemma (slow automation on one step). In parallel I'm writing the definitions for the main induction, one soundness statement per interpreter function.
+
+  Called isabelle-pide-mcp 3 times, ran 1 shell command
+
+The checker lemmas now check cleanly, with no errors. Next: definitions for the main induction.
+
+  Called isabelle-pide-mcp 4 times
+
+Definitions check. Now proving the destruction-related cases (cleanup, drop_paths), plus helper lemmas.
+
+  Called isabelle-pide-mcp 4 times
+
+cleanup and drop_paths are proven. Now drop_path, which runs __deinit__ bodies by appealing to the statement case at lower fuel.
+
+  Called isabelle-pide-mcp 6 times
+
+Helper lemmas check. Now writing the drop_path proof.
+
+  Called isabelle-pide-mcp 6 times
+
+drop_path is proven, so destruction (including __deinit__) no longer has to be assumed. Next are the expression cases with calls: places first, then expressions.
+
+  Called isabelle-pide-mcp 4 times
+
+Places are proven. Next: expressions (the call and method-call cases appeal to the call statements) and expression lists.
+
+  Called isabelle-pide-mcp 9 times
+
+Expressions are proven. Remaining: reference evaluation, argument passing, function and method calls, function bodies (invoke), statements and blocks. Now doing reference evaluation.
+
+  Called isabelle-pide-mcp 2 times
+
+Reference evaluation is proven. Now argument passing: the head argument is split into cases, with a shared lemma for the tail.
+
+  Called isabelle-pide-mcp 11 times
+
+The shared lemma for the remaining arguments is proven. Now the main argument-passing case.
+
+  Called isabelle-pide-mcp 4 times
+
+Argument passing is proven. Before function and method calls, I'm generalizing inv_chg: after a call, the callee's own roots also change, and those don't concern the caller.
+
+  Called isabelle-pide-mcp 4 times
+
+Next I'm covering the generalized inv_chg checks and what follows, then the two shared lemmas for function and method calls: one builds the callee's invariant from the arguments, the other restores the caller's invariant after return.
+
+Writing the callee-entry lemma: the invariant at a callee's entry is built from the passed arguments. Fixing small issues now.
+
+  Called isabelle-pide-mcp 8 times
+
+The callee-entry lemma is proven. Next: restoring the caller's invariant after a call.
+
+  Called isabelle-pide-mcp 4 times
+
+Still in the callee-entry and caller-restore lemmas: fixing two small proofs.
+
+  Called isabelle-pide-mcp 2 times
+
+Both shared call lemmas are proven. Now helper lemmas for function calls (struct construction, parameter lookup, freeing the self root), then the function-call case.
+
+  Called isabelle-pide-mcp 2 times
+
+Helper lemmas for calls are proven. Next: the function-call case, covering fieldwise construction, __init__, and plain functions.
+
+  You've hit your 5-hour limit · resets 10:50pm (Australia/Brisbane)
+  Usage limit reached · continuing automatically at 10:50pm · esc to cancel
+
+
+> /statusline
+
+
+⏺ Usage limit reset · Continuing automatically
+
+⏺ statusline-setup(Configure statusline from PS1)
+Backgrounded agent (↓ to manage · ctrl+o to expand)
+
+The status-line setup is running in the background. Meanwhile I'm continuing with the calls proof and checking the function-call case.
+
+  Called isabelle-pide-mcp 2 times
+
+› Message from @statusline-setup (ctrl+o to expand)
+
+⏺ Agent "Configure statusline from PS1" finished · 9s
+
+The status-line agent made no changes, since none of the shell profiles set a prompt to copy, so it needs you to specify what the line should show. It also flagged plaintext OpenAI and Gemini API keys in ~/.zshrc (lines 17–18), which you may want to rotate and move out of the file; I'm continuing with the call proof.
+
+  Called isabelle-pide-mcp 10 times
+
+args_ok_recv is proven. Now writing the method-call case itself: list append/pop and struct methods.
+
+  Called isabelle-pide-mcp 8 times
+
+The method-call case is now proven. Before invoke can be handled, its frame must allow the callee's roots to be freed at return, and those roots must be distinct; I'm updating the definitions and lemmas that depend on them.
+
+  Called isabelle-pide-mcp 10 times
+
+callee_ok and the frame of invoke are updated, and everything checks again. Now proving invoke: run the body, then destroy the callee's owned locals.
+
+  Called isabelle-pide-mcp 7 times
+
+An edge case: a partly initialized out self must never sit in a root owned by the callee, or its cleanup would not be type-correct. Adding that to the callee's entry conditions.
+
+  Called isabelle-pide-mcp 5 times
+
+The only remaining issue in the invoke proof is one slow step; replacing it.
+
+  Called isabelle-pide-mcp 2 times, ran 3 shell commands
+
+Next I'm adapting the call-free proofs to the new frames, starting with helpers for references returned by calls, dropping a variable, and frames across declarations.
+
+  Called isabelle-pide-mcp 4 times
+
+Helpers check. Now the assignment lemma, rebuilt on inv_chg.
+
+  Called isabelle-pide-mcp 4 times
+
+Assignment is confirmed. I'm narrowing the rule so that return only requires all out self fields to be set in __init__, then I'll write the statement and block cases.
+
+  Called isabelle-pide-mcp 3 times
+
+Everything up to the statement cases checks. Writing the remaining helpers and then the block and statement cases.
+
+  Called isabelle-pide-mcp 2 times
+
+Helpers check. Writing the block case, then the statement case.
+
+  Called isabelle-pide-mcp 8 times
+
+The block case is proven. Writing the statement case: all eleven forms, now with calls allowed.
+
+  Searched for 1 pattern, called isabelle-pide-mcp 5 times, ran 1 shell command
+
+Now the statement case itself (SS_Suc). Reading the old call-free proof and the interpreter's exec to adapt it.
+
+  Called isabelle-pide-mcp 3 times
+
+Sequencing, declarations and ref bindings check. Next: assignment, expression statements, print, drop and return.
+
+  Called isabelle-pide-mcp 6 times
+
+Assignment, expression, print, drop and return all check. Now if and while.
+
+  Called isabelle-pide-mcp 5 times
+
+All statement and block cases are proven. Now the fuel induction tying the 13 parts together.
+
+  Called isabelle-pide-mcp 5 times
+
+The whole development checks in PIDE, including the final run_safe theorem. Now checking for leftover sorrys, updating ROOT, and running a clean batch build.
+
+  Ran 1 shell command
+
+Batch build passes. Last step: making the theory's overview text match what was proved.
+
+Soundness now covers whole programs, including calls. The full Mojo_Semantics session builds cleanly in batch mode on Isabelle 2026 (about 70 s), with no sorrys.
+
+Main theorem (Micro_Mojo_Soundness_Calls.thy):
+
+isabelle
+theorem run_safe:  "wf_prog P ⟹ safe (run fuel P)"
+corollary run_no_ownership_error:
+  "wf_prog P ⟹ run fuel P = Err e ⟹ e = ErrBounds ∧ ¬ ownership_err e"
+
+So whenever the checker accepts a program (check_prog P = []), running it with any amount of fuel never hits:
+- a moved, uninitialized, dangling or invalidated value;
+- a copy of something that can't be copied;
+- an out self field read before it is set;
+- a type or arity error.
+
+The only error left is an out-of-bounds list index. Running out of fuel doesn't count as an error. There are also general versions for any statement (stmt_sound_calls) and expression (expr_sound_calls) in any context that satisfies the invariant.
+
+What changed this session:
+- Destruction is proved, not assumed. The earlier sound_drop assumption is gone. Dropping, cleanup and calls to user code are all covered by one proof by induction on the fuel, over all 13 interpreter functions.
+- Frames. A callee can only change the caller's memory below its writable parameters. This is stated with a heap "shape agreement" relation, and one general lemma (inv_chg) restores the invariant after any set of changed locations. Assignment, calls and drops all go through it.
+- The checker had real holes, found while proving calls sound and fixed in Micro_Mojo_Static.thy:
+  - places still in use while a later argument or index is evaluated;
+  - the origin of a reference returned by a call;
+  - ref[ns] origins that aren't mut/ref parameters;
+  - calls returning references used as values of non-trivial type;
+  - early return inside __init__;
+  - wrong receiver parameters on initializers and methods;
+  - duplicate field names, function/struct name clashes, and a main with parameters.
+
+  All example programs still give the same results.
+- One weakening: the "all fields of self are initialized" condition at a return now only applies to functions with no result. That matches what the checker actually enforces.
+
+Limits:
+- The theorem covers programs as the checker sees them, with explicit SDrops. The next step is to prove that the ASAP elaboration (elab_body) produces accepted programs from acceptable sources, so the result carries over to normal Mojo-style code.
+- Bounds errors and termination are not covered.
+
+ROOT now includes Micro_Mojo_Soundness_Calls (about 5,400 lines). Nothing is committed: the three soundness theories are untracked, and Micro_Mojo_Static.thy, ROOT and prompts.md have uncommitted changes. I can commit them if you'd like.
 
 

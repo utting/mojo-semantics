@@ -335,39 +335,148 @@ definition root_ok :: "ctx \<Rightarrow> senv \<Rightarrow> astate \<Rightarrow>
        check (\<forall>y \<in> og. case map_of \<Gamma> y of Some (KOwned _) \<Rightarrow> y \<in> a_init \<sigma> | _ \<Rightarrow> True)
          (''reference '' @ x @ '' is used after a value it refers to was moved'') })"
 
+text \<open>
+  A place may be mutated unless its origin contains an immutable argument.
+  For a reference this checks every variable it may point into, so a
+  reference to an @{text "imm"} argument cannot be used to mutate it.
+\<close>
+
+fun imm_kind :: "vkind option \<Rightarrow> bool" where
+  "imm_kind (Some (KBorrow c _)) = (c = Imm)"
+| "imm_kind _ = False"
+
 definition mut_ok :: "senv \<Rightarrow> place \<Rightarrow> unit ck" where
-  "mut_ok \<Gamma> p = (case map_of \<Gamma> (root_of p) of
-     Some (KBorrow c _) \<Rightarrow> check (c \<noteq> Imm) ''cannot mutate through an immutable argument''
-   | _ \<Rightarrow> Good ())"
+  "mut_ok \<Gamma> p = check
+     (\<forall>y \<in> place_origin \<Gamma> p. \<not> imm_kind (map_of \<Gamma> y))
+     ''cannot mutate through an immutable argument''"
 
 definition refs_into :: "senv \<Rightarrow> vname set \<Rightarrow> vname set" where
   "refs_into \<Gamma> R = set [x. (x, k) \<leftarrow> \<Gamma>, case k of KRef _ _ i \<Rightarrow> i \<inter> R \<noteq> {} | _ \<Rightarrow> False]"
 
 text \<open>
-  Mutating a place may change the shape of every list in its footprint,
-  which invalidates the references into their items, unless the place is
-  itself an item (it contains an index, or its root is a reference into an
-  item). That case is an item mutation, which preserves references,
-  exactly as in the @{text "Shape"}/@{text "Item"} model of the region theory.
+  Mutating a place of type @{text "T"} may change the shape of every list
+  inside the value at the place. This invalidates the references into the
+  items of those lists, so the checker marks as invalidated every reference
+  whose interior meets the origin of the place. If @{text "T"} is trivial, the
+  value contains no lists, and nothing is invalidated. This is the
+  @{text "Shape"}/@{text "Item"} distinction of the region theory: assigning a
+  trivial list item is an item mutation and preserves references to the
+  other items.
+
+  An earlier version also treated every assignment to a list item, such as
+  @{text "l[i] = v"}, as an item mutation. That is unsound when the items
+  themselves contain lists: in a @{text "List[List[Int]]"}, assigning
+  @{text "l[0]"} replaces the inner list that a reference to @{text "l[0][1]"}
+  points into. The soundness proof exposed this. The check is conservative
+  because interiors do not record at which index a reference points into
+  a list: assigning @{text "l[1]"} also invalidates a reference to
+  @{text "l[0][0]"}.
 \<close>
 
-definition invalidate_place :: "senv \<Rightarrow> astate \<Rightarrow> place \<Rightarrow> astate" where
-  "invalidate_place \<Gamma> \<sigma> p =
-     (if has_index p \<or> ref_interior \<Gamma> (root_of p) \<noteq> {} then \<sigma>
+definition invalidate_place :: "senv \<Rightarrow> astate \<Rightarrow> place \<Rightarrow> ty \<Rightarrow> astate" where
+  "invalidate_place \<Gamma> \<sigma> p T =
+     (if trivial_ty T then \<sigma>
       else \<sigma>\<lparr>a_inval := a_inval \<sigma> \<union> refs_into \<Gamma> (place_origin \<Gamma> p)\<rparr>)"
 
 text \<open>
-  Argument exclusivity: no borrowed @{text "mut"} argument may overlap another
+  The conventions under which an argument is borrowed mutably: @{text "mut"},
+  and also @{text "ref"} and @{text "out"}, through which the callee may
+  write too.
+\<close>
+
+definition borrows_mut :: "conv \<Rightarrow> bool" where
+  "borrows_mut c \<longleftrightarrow> c = conv.Mut \<or> c = Ref \<or> c = Out"
+
+text \<open>
+  Argument exclusivity: no mutably borrowed argument may overlap another
   borrowed argument. Trivial values passed @{text "imm"} are copies and are
-  not borrowed.
+  not borrowed. (An earlier version only checked @{text "mut"} arguments,
+  which let a @{text "ref"} argument alias an @{text "imm"} one.)
 \<close>
 
 definition exclusive :: "senv \<Rightarrow> (place \<times> conv) list \<Rightarrow> unit ck" where
   "exclusive \<Gamma> bs = check
-     (list_all id [\<not> (snd (bs ! i) = conv.Mut \<or> snd (bs ! j) = conv.Mut)
+     (list_all id [\<not> (borrows_mut (snd (bs ! i)) \<or> borrows_mut (snd (bs ! j)))
                    \<or> \<not> overlap \<Gamma> (fst (bs ! i)) (fst (bs ! j)).
                    i \<leftarrow> [0..<length bs], j \<leftarrow> [0..<length bs], i < j])
      ''argument exclusivity: a mut argument aliases another argument''"
+
+subsection \<open>Places in flight\<close>
+
+text \<open>
+  A borrowed argument, a method receiver and the list in @{text "l[e]"} are
+  evaluated to a location before the remaining arguments (or the index)
+  are evaluated, and the location is used afterwards. Mojo keeps such a
+  borrow live while the other arguments are evaluated, so evaluating them
+  may not move or mutate the borrowed value. An earlier version of the
+  checker did not check this, and accepted programs such as
+  @{text "g(l[0], f(l))"}, where @{text "f(mut l)"} appends to @{text "l"}, or
+  @{text "g(l, l^)"}, which fail at run time. The soundness proof for calls
+  exposed this.
+
+  @{text "mroots P \<Gamma> e"} over-approximates the variables whose values
+  evaluating @{text "e"} may move or mutate: the variables transferred with
+  @{text "^"}, and the origins of the places passed to @{text "mut"},
+  @{text "ref"} and @{text "out"} parameters and of mutated method receivers.
+  For a call, @{text "eargs"} is the part due to evaluating the arguments
+  (before the call itself), and @{text "bargs"} consists of the origins of
+  the places the call borrows mutably.
+\<close>
+
+definition bargs :: "senv \<Rightarrow> (conv \<times> vname \<times> ty) list \<Rightarrow> expr list \<Rightarrow> vname set" where
+  "bargs \<Gamma> ps es = \<Union> (set [place_origin \<Gamma> p. ((c, _, _), EPlace p) \<leftarrow> zip ps es, borrows_mut c])"
+
+fun mroots_p :: "prog \<Rightarrow> senv \<Rightarrow> place \<Rightarrow> vname set"
+and mroots :: "prog \<Rightarrow> senv \<Rightarrow> expr \<Rightarrow> vname set"
+and mroots_l :: "prog \<Rightarrow> senv \<Rightarrow> expr list \<Rightarrow> vname set"
+and eargs :: "prog \<Rightarrow> senv \<Rightarrow> (conv \<times> vname \<times> ty) list \<Rightarrow> expr list \<Rightarrow> vname set"
+where
+  "mroots_p P \<Gamma> (PVar x) = {}"
+| "mroots_p P \<Gamma> (PField p f) = mroots_p P \<Gamma> p"
+| "mroots_p P \<Gamma> (PIndex p e) = mroots_p P \<Gamma> p \<union> mroots P \<Gamma> e"
+| "mroots P \<Gamma> (EPlace p) = mroots_p P \<Gamma> p"
+| "mroots P \<Gamma> (ETake p) = insert (root_of p) (mroots_p P \<Gamma> p)"
+| "mroots P \<Gamma> (ECopy p) = mroots_p P \<Gamma> p"
+| "mroots P \<Gamma> (ECall f es) = (case call_params P f of
+     Good ps \<Rightarrow> eargs P \<Gamma> ps es \<union> bargs \<Gamma> ps es
+   | Bad _ \<Rightarrow> {})"
+| "mroots P \<Gamma> (EMeth p m es) = mroots_p P \<Gamma> p \<union> (case ptype P \<Gamma> p of
+     Good (TList _) \<Rightarrow> place_origin \<Gamma> p \<union> mroots_l P \<Gamma> es
+   | Good (TStruct S) \<Rightarrow> (case meth_decl P S m of
+       Good fd \<Rightarrow> (case fd_params fd of
+         (c, _, _) # ps \<Rightarrow>
+           (if borrows_mut c then place_origin \<Gamma> p else {}) \<union> eargs P \<Gamma> ps es \<union> bargs \<Gamma> ps es
+       | [] \<Rightarrow> {})
+     | Bad _ \<Rightarrow> {})
+   | _ \<Rightarrow> {})"
+| "mroots P \<Gamma> (EBin _ a b) = mroots P \<Gamma> a \<union> mroots P \<Gamma> b"
+| "mroots P \<Gamma> (ENot a) = mroots P \<Gamma> a"
+| "mroots P \<Gamma> (ELen p) = mroots_p P \<Gamma> p"
+| "mroots P \<Gamma> (EList es) = mroots_l P \<Gamma> es"
+| "mroots P \<Gamma> (EInt _) = {}"
+| "mroots P \<Gamma> (EBool _) = {}"
+| "mroots P \<Gamma> (EStr _) = {}"
+| "mroots_l P \<Gamma> [] = {}"
+| "mroots_l P \<Gamma> (e # es) = mroots P \<Gamma> e \<union> mroots_l P \<Gamma> es"
+| "eargs P \<Gamma> ((c, x, T) # ps) (e # es) =
+     (if c = Var \<or> c = Deinit then mroots P \<Gamma> e
+      else (case e of EPlace p \<Rightarrow> mroots_p P \<Gamma> p | _ \<Rightarrow> mroots P \<Gamma> e)) \<union> eargs P \<Gamma> ps es"
+| "eargs P \<Gamma> [] _ = {}"
+| "eargs P \<Gamma> (_ # _) [] = {}"
+
+text \<open>
+  A call of a function returning a reference, used as a value, copies the
+  value it refers to implicitly. An earlier version of the checker allowed
+  this for any type, and the run-time copy then failed with
+  @{text "ErrNotCopyable"}.
+\<close>
+
+definition val_call :: "prog \<Rightarrow> name \<Rightarrow> bool" where
+  "val_call P f = (case find_struct P f of
+     Some _ \<Rightarrow> True
+   | None \<Rightarrow> (case find_fun P f of
+       Some fd \<Rightarrow> (case fd_ret fd of RRef _ T \<Rightarrow> trivial_ty T | _ \<Rightarrow> True)
+     | None \<Rightarrow> True))"
 
 subsection \<open>Expressions\<close>
 
@@ -387,7 +496,11 @@ and chk_args :: "ctx \<Rightarrow> senv \<Rightarrow> astate \<Rightarrow> (conv
 where
   "chk_idx C \<Gamma> \<sigma> (PVar x) = Good \<sigma>"
 | "chk_idx C \<Gamma> \<sigma> (PField p f) = chk_idx C \<Gamma> \<sigma> p"
-| "chk_idx C \<Gamma> \<sigma> (PIndex p e) = do { \<sigma> \<leftarrow> chk_idx C \<Gamma> \<sigma> p; chk_expr C \<Gamma> \<sigma> e }"
+| "chk_idx C \<Gamma> \<sigma> (PIndex p e) = do {
+     \<sigma> \<leftarrow> chk_idx C \<Gamma> \<sigma> p;
+     check (place_origin \<Gamma> p \<inter> mroots (c_prog C) \<Gamma> e = {})
+       ''an index may not move or mutate the indexed value'';
+     chk_expr C \<Gamma> \<sigma> e }"
 | "chk_expr C \<Gamma> \<sigma> (EInt _) = Good \<sigma>"
 | "chk_expr C \<Gamma> \<sigma> (EBool _) = Good \<sigma>"
 | "chk_expr C \<Gamma> \<sigma> (EStr _) = Good \<sigma>"
@@ -415,6 +528,8 @@ where
       | _ \<Rightarrow> Good ());
      Good \<sigma> }"
 | "chk_expr C \<Gamma> \<sigma> (ECall f es) = do {
+     check (val_call (c_prog C) f)
+       ''a reference returned by a call is used as a value, which needs a trivial type'';
      ps \<leftarrow> call_params (c_prog C) f;
      (\<sigma>, bs) \<leftarrow> chk_args C \<Gamma> \<sigma> ps es;
      exclusive \<Gamma> bs;
@@ -426,16 +541,22 @@ where
      (case T of
         TList _ \<Rightarrow> do {
           mut_ok \<Gamma> p;
+          check (place_origin \<Gamma> p \<inter> mroots_l (c_prog C) \<Gamma> es = {})
+            ''the arguments of a method call may not move or mutate its receiver'';
           \<sigma> \<leftarrow> chk_exprs C \<Gamma> \<sigma> es;
-          Good (invalidate_place \<Gamma> \<sigma> p) }
+          Good (invalidate_place \<Gamma> \<sigma> p T) }
       | TStruct S \<Rightarrow> do {
           fd \<leftarrow> meth_decl (c_prog C) S m;
           (case fd_params fd of
              (c, _, _) # ps \<Rightarrow> do {
-               (if c = conv.Mut then mut_ok \<Gamma> p else Good ());
+               (if borrows_mut c then mut_ok \<Gamma> p else Good ());
+               check (place_origin \<Gamma> p \<inter> eargs (c_prog C) \<Gamma> ps es = {})
+                 ''the arguments of a method call may not move or mutate its receiver'';
+               check (case fd_ret fd of RRef _ U \<Rightarrow> trivial_ty U | _ \<Rightarrow> True)
+                 ''a reference returned by a method is used as a value, which needs a trivial type'';
                (\<sigma>, bs) \<leftarrow> chk_args C \<Gamma> \<sigma> ps es;
                exclusive \<Gamma> ((p, c) # bs);
-               Good (if c = conv.Mut then invalidate_place \<Gamma> \<sigma> p else \<sigma>) }
+               Good (if borrows_mut c then invalidate_place \<Gamma> \<sigma> p T else \<sigma>) }
            | [] \<Rightarrow> Bad ''method without self'') }
       | _ \<Rightarrow> Bad ''method call on a value that is neither a struct nor a list'') }"
 | "chk_expr C \<Gamma> \<sigma> (EBin _ a b) = do { \<sigma> \<leftarrow> chk_expr C \<Gamma> \<sigma> a; chk_expr C \<Gamma> \<sigma> b }"
@@ -454,8 +575,11 @@ where
             root_ok C \<Gamma> \<sigma> p;
             U \<leftarrow> ptype (c_prog C) \<Gamma> p;
             if c = Imm \<and> trivial_ty U then Good (\<sigma>, [])
-            else if c = conv.Mut then do { mut_ok \<Gamma> p; Good (invalidate_place \<Gamma> \<sigma> p, [(p, c)]) }
-            else Good (\<sigma>, [(p, c)]) }
+            else do {
+              check (place_origin \<Gamma> p \<inter> eargs (c_prog C) \<Gamma> ps es = {})
+                ''a later argument may not move or mutate a borrowed argument'';
+              if borrows_mut c then do { mut_ok \<Gamma> p; Good (invalidate_place \<Gamma> \<sigma> p U, [(p, c)]) }
+              else Good (\<sigma>, [(p, c)]) } }
         | _ \<Rightarrow>
             if c = Imm then do { \<sigma> \<leftarrow> chk_expr C \<Gamma> \<sigma> e; Good (\<sigma>, []) }
             else Bad (''the argument for mut/ref parameter '' @ x @ '' must be a place'')));
@@ -463,12 +587,51 @@ where
      Good (\<sigma>, bs1 @ bs2) }"
 | "chk_args C \<Gamma> \<sigma> _ _ = Bad ''wrong number of arguments''"
 
+text \<open>
+  The arguments of a call, checked as by @{text "chk_expr"} but without
+  using the result as a value (for @{text "ref"} bindings).
+\<close>
+
+definition chk_call :: "ctx \<Rightarrow> senv \<Rightarrow> astate \<Rightarrow> name \<Rightarrow> expr list \<Rightarrow> astate ck" where
+  "chk_call C \<Gamma> \<sigma> f es = do {
+     ps \<leftarrow> call_params (c_prog C) f;
+     (\<sigma>, bs) \<leftarrow> chk_args C \<Gamma> \<sigma> ps es;
+     exclusive \<Gamma> bs;
+     Good \<sigma> }"
+
+lemma chk_expr_ECall:
+  "chk_expr C \<Gamma> \<sigma> (ECall f es) = do {
+     check (val_call (c_prog C) f)
+       ''a reference returned by a call is used as a value, which needs a trivial type'';
+     chk_call C \<Gamma> \<sigma> f es }"
+  by (simp add: chk_call_def)
+
 subsection \<open>Statements\<close>
 
 text \<open>
   The arguments of a reference-returning call that end up in the origin of
   the result: those passed to the parameters named in @{text "ref[...]"}.
 \<close>
+
+text \<open>
+  Assigning to a place of type @{text "T"}, after the right-hand side has been
+  checked: assigning a whole owned variable (re)initializes it, assigning a
+  field of @{text "out self"} initializes that field, and any other place
+  must be usable and mutable. In all cases the references into the
+  interior of the place are invalidated, unless @{text "T"} is trivial.
+\<close>
+
+definition chk_assign :: "ctx \<Rightarrow> senv \<Rightarrow> astate \<Rightarrow> place \<Rightarrow> ty \<Rightarrow> astate ck" where
+  "chk_assign C \<Gamma> \<sigma> p T = (case (p, map_of \<Gamma> (root_of p)) of
+     (PVar x, Some (KOwned _)) \<Rightarrow>
+       Good (invalidate_place \<Gamma> (\<sigma>\<lparr>a_init := insert x (a_init \<sigma>)\<rparr>) p T)
+   | (PField (PVar _) f, Some (KBorrow Out _)) \<Rightarrow>
+       Good (invalidate_place \<Gamma> (\<sigma>\<lparr>a_fields := insert f (a_fields \<sigma>)\<rparr>) p T)
+   | _ \<Rightarrow> do {
+       \<sigma> \<leftarrow> chk_idx C \<Gamma> \<sigma> p;
+       root_ok C \<Gamma> \<sigma> p;
+       mut_ok \<Gamma> p;
+       Good (invalidate_place \<Gamma> \<sigma> p T) })"
 
 definition ref_args :: "(conv \<times> vname \<times> ty) list \<Rightarrow> expr list \<Rightarrow> vname list \<Rightarrow> place list" where
   "ref_args ps es ns = [p. ((_, x, _), EPlace p) \<leftarrow> zip ps es, x \<in> set ns]"
@@ -495,7 +658,7 @@ where
 | "chk_stmt C \<Gamma> \<sigma> (SVar x T eo) = do {
      check (x \<notin> fst ` set \<Gamma>) (''variable declared twice: '' @ x);
      (case eo of
-        None \<Rightarrow> Good ((x, KOwned T) # \<Gamma>, Some \<sigma>)
+        None \<Rightarrow> Good ((x, KOwned T) # \<Gamma>, Some (\<sigma>\<lparr>a_init := a_init \<sigma> - {x}\<rparr>))
       | Some e \<Rightarrow> do {
           ty_init (c_prog C) \<Gamma> T e;
           \<sigma> \<leftarrow> chk_expr C \<Gamma> \<sigma> e;
@@ -512,9 +675,9 @@ where
           Some fd \<Rightarrow> (case fd_ret fd of
              RRef ns T \<Rightarrow> do {
                _ \<leftarrow> etype (c_prog C) \<Gamma> e;
-               \<sigma> \<leftarrow> chk_expr C \<Gamma> \<sigma> e;
+               \<sigma> \<leftarrow> chk_call C \<Gamma> \<sigma> f es;
                Good ((x, KRef T (\<Union>p \<in> set (ref_args (fd_params fd) es ns). place_origin \<Gamma> p)
-                                (\<Union>p \<in> set (ref_args (fd_params fd) es ns). place_interior \<Gamma> p))
+                                (\<Union>p \<in> set (ref_args (fd_params fd) es ns). place_origin \<Gamma> p))
                        # \<Gamma>, Some \<sigma>) }
            | _ \<Rightarrow> Bad (''a ref binding needs a reference, but '' @ f @ '' returns a value''))
         | None \<Rightarrow> Bad (''unknown function '' @ f))
@@ -523,16 +686,8 @@ where
      T \<leftarrow> ptype (c_prog C) \<Gamma> p;
      ty_init (c_prog C) \<Gamma> T e;
      \<sigma> \<leftarrow> chk_expr C \<Gamma> \<sigma> e;
-     (case (p, map_of \<Gamma> (root_of p)) of
-        (PVar x, Some (KOwned _)) \<Rightarrow>
-          Good (\<Gamma>, Some (invalidate_place \<Gamma> (\<sigma>\<lparr>a_init := insert x (a_init \<sigma>)\<rparr>) p))
-      | (PField (PVar _) f, Some (KBorrow Out _)) \<Rightarrow>
-          Good (\<Gamma>, Some (\<sigma>\<lparr>a_fields := insert f (a_fields \<sigma>)\<rparr>))
-      | _ \<Rightarrow> do {
-          \<sigma> \<leftarrow> chk_idx C \<Gamma> \<sigma> p;
-          root_ok C \<Gamma> \<sigma> p;
-          mut_ok \<Gamma> p;
-          Good (\<Gamma>, Some (invalidate_place \<Gamma> \<sigma> p)) }) }"
+     \<sigma> \<leftarrow> chk_assign C \<Gamma> \<sigma> p T;
+     Good (\<Gamma>, Some \<sigma>) }"
 | "chk_stmt C \<Gamma> \<sigma> (SExpr e) = do {
      _ \<leftarrow> etype (c_prog C) \<Gamma> e;
      \<sigma> \<leftarrow> chk_expr C \<Gamma> \<sigma> e;
@@ -556,6 +711,7 @@ where
      Good (\<Gamma>, o\<sigma>) }"
 | "chk_stmt C \<Gamma> \<sigma> (SReturn None) = do {
      check (c_ret C = RNone) ''missing return value'';
+     check (set (c_fields C) \<subseteq> a_fields \<sigma>) ''return before every field of self is initialized'';
      Good (\<Gamma>, None) }"
 | "chk_stmt C \<Gamma> \<sigma> (SReturn (Some e)) = (case c_ret C of
      RNone \<Rightarrow> Bad ''return with a value from a function without a result''
@@ -619,6 +775,11 @@ definition chk_body :: "prog \<Rightarrow> ret \<Rightarrow> fname list \<Righta
   "chk_body P rt flds ps body = do {
      check (distinct (map (fst \<circ> snd) ps @ decl_names body))
        ''variable names must be distinct within a function'';
+     check (length (filter (\<lambda>(c, _, _). c = Out) ps) \<le> 1) ''at most one out parameter'';
+     check (case rt of
+              RRef ns _ \<Rightarrow> list_all (\<lambda>x. list_ex (\<lambda>(c, y, _). y = x \<and> (c = conv.Mut \<or> c = Ref)) ps) ns
+            | _ \<Rightarrow> True)
+       ''the origin of a returned reference must consist of mut or ref parameters'';
      (_, o\<sigma>) \<leftarrow> chk_stmt \<lparr>c_prog = P, c_ret = rt, c_fields = flds\<rparr> (rev (map param_kind ps))
                  \<lparr>a_init = set [x. (c, x, _) \<leftarrow> ps, c = Var], a_inval = {}, a_fields = {}\<rparr> body;
      (case o\<sigma> of
@@ -636,7 +797,18 @@ definition chk_fun :: "prog \<Rightarrow> string \<Rightarrow> fundecl \<Rightar
 
 definition chk_struct :: "prog \<Rightarrow> structdecl \<Rightarrow> string list" where
   "chk_struct P sd =
-     (case sd_init sd of
+     report (sd_name sd) (do {
+       check (distinct (map fst (sd_fields sd))) ''duplicate field names'';
+       check (case sd_init sd of
+                None \<Rightarrow> True
+              | Some fd \<Rightarrow> fd_ret fd = RNone \<and>
+                  (case fd_params fd of (Out, _, T) # _ \<Rightarrow> T = TStruct (sd_name sd) | _ \<Rightarrow> False))
+         ''__init__ must take out self first and return nothing'';
+       check (list_all (\<lambda>fd. case fd_params fd of
+                (c, _, T) # _ \<Rightarrow> (c = Imm \<or> c = conv.Mut \<or> c = Ref) \<and> T = TStruct (sd_name sd)
+              | [] \<Rightarrow> False) (sd_methods sd))
+         ''a method must take self first, as an imm, mut or ref parameter'' })
+     @ (case sd_init sd of
         None \<Rightarrow> []
       | Some fd \<Rightarrow> report (sd_name sd @ ''.__init__'')
                     (chk_body P RNone (map fst (sd_fields sd)) (fd_params fd) (fd_body fd)))
@@ -647,7 +819,13 @@ definition chk_struct :: "prog \<Rightarrow> structdecl \<Rightarrow> string lis
      @ concat (map (chk_fun P (sd_name sd @ ''.'')) (sd_methods sd))"
 
 definition check_prog :: "prog \<Rightarrow> string list" where
-  "check_prog P = concat (map (chk_struct P) (p_structs P)) @ concat (map (chk_fun P '''') (p_funs P))"
+  "check_prog P =
+     (if list_ex (\<lambda>fd. list_ex (\<lambda>sd. sd_name sd = fd_name fd) (p_structs P)) (p_funs P)
+      then [''a function has the name of a struct''] else [])
+     @ (case find_fun P ''main'' of
+          None \<Rightarrow> [''no main function'']
+        | Some fd \<Rightarrow> if fd_params fd = [] then [] else [''main takes no parameters''])
+     @ concat (map (chk_struct P) (p_structs P)) @ concat (map (chk_fun P '''') (p_funs P))"
 
 section \<open>ASAP elaboration\<close>
 
