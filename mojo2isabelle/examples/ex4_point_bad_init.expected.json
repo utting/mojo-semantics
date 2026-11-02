@@ -1,0 +1,6 @@
+{
+  "status": "compile_error",
+  "stdout": "",
+  "stderr": "/Users/uqmuttin/git/rust/mojo-semantics/mojo2isabelle/examples/ex4_point_bad_init.mojo:5:9: error: 'self.y' is uninitialized at the implicit return from this function\n    def __init__(out self, a: Int):\n        ^\n/Users/uqmuttin/git/rust/mojo-semantics/mojo2isabelle/examples/ex4_point_bad_init.mojo:5:22: note: 'self' declared here\n    def __init__(out self, a: Int):\n                     ^\n/Users/uqmuttin/git/rust/mojo-semantics/hello-world/.venv/bin/mojo: error: failed to run the pass manager\n",
+  "source": "Mojo 1.2.0 (2016d0cd)"
+}

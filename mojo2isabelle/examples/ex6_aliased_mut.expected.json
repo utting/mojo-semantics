@@ -1,0 +1,6 @@
+{
+  "status": "compile_error",
+  "stdout": "",
+  "stderr": "/Users/uqmuttin/git/rust/mojo-semantics/mojo2isabelle/examples/ex6_aliased_mut.mojo:10:17: error: aliasing values passed mutably to 'l' argument and passed immutably to 'other' argument in 'append_twice' call\n    append_twice(l, l)          # error: argument aliasing\n                ^~  ~\n/Users/uqmuttin/git/rust/mojo-semantics/mojo2isabelle/examples/ex6_aliased_mut.mojo:10:17: note: 'origin_of(l)' value is passed through aliasing 'imm' argument 'other'\n    append_twice(l, l)          # error: argument aliasing\n                ^   ~\n/Users/uqmuttin/git/rust/mojo-semantics/hello-world/.venv/bin/mojo: error: failed to parse the provided Mojo source module\n",
+  "source": "Mojo 1.2.0 (2016d0cd)"
+}
