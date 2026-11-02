@@ -106,9 +106,9 @@ python3 mojo_suite.py thy suite/ -o ../tests/Micro_Mojo_Suite.thy --theory Micro
   disagree with Mojo 1.2.0. They are generated as `lemma ..._diverges: "¬ test"`,
   so the build stays green, and it turns red as soon as the semantics is fixed
   (then remove the entry). Current entries: `__deinit__` destroys unused fields
-  on entry and the others after their last use (not all after the body), and
-  unused `var` parameters are destroyed on entry to the callee (both are ASAP
-  elaboration gaps).
+  on entry and the others after their last use (not all after the body), which
+  is an ASAP elaboration gap. (Unused `var` parameters, destroyed on entry to
+  the callee, were such an entry until `elab_body` was fixed.)
 
 ## Things to keep in mind
 

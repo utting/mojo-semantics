@@ -1031,9 +1031,19 @@ fun var_decls :: "stmt \<Rightarrow> vname list" where
 | "var_decls (SWhile _ b) = var_decls b"
 | "var_decls _ = []"
 
+text \<open>
+  Mojo destroys a @{text "var"} parameter that the body never uses as soon as
+  the callee is entered (found by differential testing, tests d09 and d14),
+  so the body starts with drops of the owned parameters that are not live
+  on entry.
+\<close>
+
 definition elab_body :: "prog \<Rightarrow> (conv \<times> vname \<times> ty) list \<Rightarrow> stmt \<Rightarrow> stmt" where
   "elab_body P ps body =
-     seq (elab (refs_of P [] body) (rev ([x. (c, x, _) \<leftarrow> ps, c = Var] @ var_decls body)) body {})"
+     (let M = refs_of P [] body;
+          Ps = [x. (c, x, _) \<leftarrow> ps, c = Var];
+          Os = rev (Ps @ var_decls body)
+      in seq (drops Os (set Ps - live M body {}) @ elab M Os body {}))"
 
 definition elab_fun :: "prog \<Rightarrow> fundecl \<Rightarrow> fundecl" where
   "elab_fun P fd = Fun (fd_name fd) (fd_params fd) (fd_ret fd) (elab_body P (fd_params fd) (fd_body fd))"

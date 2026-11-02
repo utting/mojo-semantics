@@ -1003,10 +1003,7 @@ definition t_d09_var_param_unused :: prog where
                SExpr (ECall ''ignore'' [ETake (PVar ''a'')]),
                SPrint [EStr ''end'']])]\<close>
 
-text \<open>\<^bold>\<open>Known divergence from Mojo.\<close> Mojo destroys an unused 'var' parameter on entry to the callee. The model's elaboration only drops a parameter after a use, so an unused one lives until the callee returns.
-  The lemma below asserts that the semantics does NOT yet reproduce the compiler's behaviour; when the semantics is fixed it will fail and should be turned into a normal test (remove the entry from known_divergences.json).\<close>
-
-lemma t_d09_var_param_unused_diverges: \<open>\<not> test_output t_d09_var_param_unused 5000 [''drop 1'', ''in ignore'', ''end'']\<close>
+lemma t_d09_var_param_unused_test: \<open>test_output t_d09_var_param_unused 5000 [''drop 1'', ''in ignore'', ''end'']\<close>
   by eval
 
 subsection \<open>d10_return_owned\<close>
@@ -1309,10 +1306,7 @@ definition t_d14_var_params_asap :: prog where
                SExpr (ECall ''f'' [ETake (PVar ''x''), ETake (PVar ''y'')]),
                SPrint [EStr ''end'']])]\<close>
 
-text \<open>\<^bold>\<open>Known divergence from Mojo.\<close> Same as d09: 'var' parameters should be dropped after their last use (and unused ones on entry); here 'a' is unused.
-  The lemma below asserts that the semantics does NOT yet reproduce the compiler's behaviour; when the semantics is fixed it will fail and should be turned into a normal test (remove the entry from known_divergences.json).\<close>
-
-lemma t_d14_var_params_asap_diverges: \<open>\<not> test_output t_d14_var_params_asap 5000 [''drop 1'', ''in f'', ''2'', ''drop 2'', ''after b'', ''end'']\<close>
+lemma t_d14_var_params_asap_test: \<open>test_output t_d14_var_params_asap 5000 [''drop 1'', ''in f'', ''2'', ''drop 2'', ''after b'', ''end'']\<close>
   by eval
 
 subsection \<open>l01_basic\<close>
