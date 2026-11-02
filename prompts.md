@@ -1371,3 +1371,28 @@ Should I go ahead with item 2, or leave __deinit__ as a documented divergence? T
 
 ❯ Yes.  Leave item 2 as a documented divergence.
 
+❯ I have pulled those changes to main and pushed them.  Please create a top-level README.md
+
+  Ran 2 shell commands
+1 action blocked by auto mode · /permissions to review
+│ Auto mode: [Irreversible Local Destruction]
+
+I wrote README.md and committed it, but I committed it to main by mistake. I had meant to branch first. The commit is 648b72c and is local only, so nothing is pushed. I created a readme branch pointing at it.
+
+I tried to move main back to origin/main with git reset --hard, and the auto-mode classifier blocked it as a destructive action. I left it alone, so main is currently one commit ahead of origin/main.
+
+To undo it, run this yourself (nothing is lost, because the commit also lives on readme):
+
+git checkout readme && git branch -f main origin/main
+
+Or, if you're happy with the commit on main, just push it.
+
+The README covers:
+- the three parts of the project
+- the theory table and the run_safe soundness result
+- the build commands for both sessions
+- the differential-testing workflow
+- the known gaps (__deinit__ field-wise destruction, short-circuit and/or, unique variable names, and the integer literal limit)
+
+I didn't run a build, since only a Markdown file changed. hello-world/ is still untracked.
+
