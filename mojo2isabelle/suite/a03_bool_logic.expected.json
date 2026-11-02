@@ -1,0 +1,6 @@
+{
+  "status": "ok",
+  "stdout": "False True False False True\nTrue True False False\n",
+  "stderr": "",
+  "source": "Mojo 1.2.0 (2016d0cd)"
+}

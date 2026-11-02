@@ -87,6 +87,29 @@ t.mojo:3:5: unsupported Mojo feature: 'for' loop
 Only the first problem in a file is reported (syntax-level rejections come
 before type-level ones).
 
+## The larger suite (`suite/`)
+
+65 programs aimed at likely weak spots of the model: destruction timing
+(`d*`), moves (`m*`), copies (`c*`), references (`r*`), lists (`l*`),
+`mut`/`var` parameters (`p*`), methods and initializers (`t*`) and
+arithmetic/control flow (`a*`). Generate and run with
+
+```sh
+python3 mojo_suite.py run suite/ --build-cmd 'uv run --project ../hello-world mojo build {src} -o {out}'
+python3 mojo_suite.py thy suite/ -o ../tests/Micro_Mojo_Suite.thy --theory Micro_Mojo_Suite
+```
+
+* `suite/rejected/` holds programs the translator must refuse (checked by
+  `test_translate.py`): name reuse within a function, and `and`/`or` whose
+  right operand has calls or indexing (Mojo short-circuits, the model does not).
+* `suite/known_divergences.json` lists tests where the semantics is known to
+  disagree with Mojo 1.2.0. They are generated as `lemma ..._diverges: "¬ test"`,
+  so the build stays green, and it turns red as soon as the semantics is fixed
+  (then remove the entry). Current entries: `__deinit__` destroys unused fields
+  on entry and the others after their last use (not all after the body), and
+  unused `var` parameters are destroyed on entry to the callee (both are ASAP
+  elaboration gaps).
+
 ## Things to keep in mind
 
 * **Integer overflow.** Mojo's `Int` is 64-bit and wraps; the model uses
@@ -96,8 +119,9 @@ before type-level ones).
 * **Desugarings.** `a > b` becomes `not (a <= b)`, `a != b` becomes
   `not (a == b)` and `-e` becomes `0 - e`, all preserving evaluation order.
   `p += e` is only accepted when `p` contains no calls (it would be evaluated
-  twice). `and`/`or` are not short-circuiting in the model, so a test whose
-  right operand has side effects would differ from Mojo.
+  twice). `and`/`or` are not short-circuiting in the model, so the translator rejects
+  a right operand containing calls or indexing. Variable names must be unique
+  within a function (a checker rule), which the translator also enforces.
 * **String literals** are only allowed as direct `print` arguments, and must
   be printable ASCII without `'`, `"` or `\`.
 * **Only the first compile error** matters for `compile_error` tests; the

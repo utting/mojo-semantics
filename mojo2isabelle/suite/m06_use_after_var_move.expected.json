@@ -1,0 +1,6 @@
+{
+  "status": "compile_error",
+  "stdout": "",
+  "stderr": "/Users/uqmuttin/git/rust/mojo-semantics/mojo2isabelle/suite/m06_use_after_var_move.mojo:10:10: error: use of uninitialized value 'a'\n    print(a.id)\n         ^\n/Users/uqmuttin/git/rust/mojo-semantics/mojo2isabelle/suite/m06_use_after_var_move.mojo:8:9: note: 'a' declared here\n    var a = Res(1)\n        ^\n/Users/uqmuttin/git/rust/mojo-semantics/mojo2isabelle/suite/m06_use_after_var_move.mojo:9:14: warning: assignment to 'b' was never used; assign to '_' instead?\n    var b = a^\n             ^\n/Users/uqmuttin/git/rust/mojo-semantics/hello-world/.venv/bin/mojo: error: failed to run the pass manager\n",
+  "source": "Mojo 1.2.0 (2016d0cd)"
+}

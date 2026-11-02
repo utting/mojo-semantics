@@ -1,0 +1,6 @@
+{
+  "d05_nested_fields": "Mojo destroys the fields of a `deinit self` individually, as soon as they are no longer needed; fields that __deinit__ never mentions are destroyed on entry, before its body runs. The model destroys all fields after the body.",
+  "d13_deinit_fields_asap": "Same as d05: fields inside __deinit__ are destroyed after their last use in the body (unused ones first), not all after the body.",
+  "d09_var_param_unused": "Mojo destroys an unused `var` parameter on entry to the callee. The model's elaboration only drops a parameter after a use, so an unused one lives until the callee returns.",
+  "d14_var_params_asap": "Same as d09: `var` parameters should be dropped after their last use (and unused ones on entry); here `a` is unused."
+}

@@ -1,0 +1,6 @@
+{
+  "status": "ok",
+  "stdout": "drop 7\nafter\ndrop 8\nend\n",
+  "stderr": "",
+  "source": "Mojo 1.2.0 (2016d0cd)"
+}

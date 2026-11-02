@@ -1,0 +1,6 @@
+{
+  "status": "compile_error",
+  "stdout": "",
+  "stderr": "/Users/uqmuttin/git/rust/mojo-semantics/mojo2isabelle/suite/r04_ref_survives_pop.mojo:5:11: error: use of invalidated interior reference 'l[\"element\"]'\n    print(e, x)\n          ^\n/Users/uqmuttin/git/rust/mojo-semantics/mojo2isabelle/suite/r04_ref_survives_pop.mojo:4:18: note: origin was invalidated here\n    var x = l.pop()\n                 ^\n/Users/uqmuttin/git/rust/mojo-semantics/hello-world/.venv/bin/mojo: error: failed to run the pass manager\n",
+  "source": "Mojo 1.2.0 (2016d0cd)"
+}

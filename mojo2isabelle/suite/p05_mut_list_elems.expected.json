@@ -1,0 +1,6 @@
+{
+  "status": "compile_error",
+  "stdout": "",
+  "stderr": "/Users/uqmuttin/git/rust/mojo-semantics/mojo2isabelle/suite/p05_mut_list_elems.mojo:8:9: error: aliasing values passed mutably to 'a' argument and passed mutably to 'b' argument in 'swap' call\n    swap(l[0], l[2])\n        ^~~~~  ~~~~\n/Users/uqmuttin/git/rust/mojo-semantics/mojo2isabelle/suite/p05_mut_list_elems.mojo:8:9: note: 'origin_of(l[\"element\"])' value is passed through aliasing 'mut' argument 'b'\n    swap(l[0], l[2])\n        ^      ~~~~\n/Users/uqmuttin/git/rust/mojo-semantics/hello-world/.venv/bin/mojo: error: failed to parse the provided Mojo source module\n",
+  "source": "Mojo 1.2.0 (2016d0cd)"
+}

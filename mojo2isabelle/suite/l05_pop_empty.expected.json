@@ -1,0 +1,6 @@
+{
+  "status": "runtime_error",
+  "stdout": "At: Mojo/stdlib/std/collections/list.mojo:1095:24: Assert Error: index -1 is out of bounds, valid range is 0 to -1\n",
+  "stderr": "Stack dump without symbol names (ensure you have llvm-symbolizer in your PATH or set the environment var `LLVM_SYMBOLIZER_PATH` to point to it):\n0  libKGENCompilerRTShared.dylib 0x000000010293e7b8\n1  libKGENCompilerRTShared.dylib 0x000000010293befc\n2  libKGENCompilerRTShared.dylib 0x000000010293f064\n3  libsystem_platform.dylib      0x0000000187d42744 _sigtramp + 56\n4  prog                          0x0000000102750b18 std::builtin::debug_assert::_debug_assert_msg[LITImmOrigin,::Origin[False, $0]](::Pointer[False, $0, ::SIMD[DType.uint8, 1], $1, AddressSpace.GENERIC],::SIMD[DType.int, 1],::SourceLocation) + 24\n",
+  "source": "Mojo 1.2.0 (2016d0cd)"
+}

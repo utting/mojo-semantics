@@ -81,6 +81,15 @@ class Rejects(unittest.TestCase):
             with self.subTest(src=src):
                 translate_source(src)
 
+    def test_rejected_suite_programs(self):
+        d = os.path.join(os.path.dirname(os.path.abspath(__file__)), "suite", "rejected")
+        for f in sorted(os.listdir(d)):
+            if f.endswith(".mojo"):
+                with self.subTest(f=f):
+                    with open(os.path.join(d, f)) as fh:
+                        with self.assertRaises(Unsupported):
+                            translate_source(fh.read())
+
     def test_error_format(self):
         with self.assertRaises(Unsupported) as cm:
             translate_source(body("for i in x:", "    pass"))

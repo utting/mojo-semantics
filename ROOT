@@ -16,4 +16,5 @@ session Mojo_Tests in tests = Mojo_Semantics +
   theories
     Micro_Mojo_Testing
     Micro_Mojo_Tests
+    Micro_Mojo_Suite
     Micro_Mojo_Translation_Check

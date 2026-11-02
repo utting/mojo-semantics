@@ -1,0 +1,6 @@
+{
+  "status": "ok",
+  "stdout": "drop inner 3\nouter start\na is 1\ndrop inner 1\nouter mid\nb is 2\ndrop inner 2\nouter end\nbuilt\n",
+  "stderr": "",
+  "source": "Mojo 1.2.0 (2016d0cd)"
+}

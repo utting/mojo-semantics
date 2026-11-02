@@ -1,0 +1,6 @@
+{
+  "status": "ok",
+  "stdout": "eat 1\ndrop 1\nbetween\neat 2\ndrop 2\nend\n",
+  "stderr": "",
+  "source": "Mojo 1.2.0 (2016d0cd)"
+}

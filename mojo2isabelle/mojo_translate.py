@@ -883,6 +883,7 @@ class Translator(object):
         self.funs = {}         # name -> FunSig
         self.scopes = []       # stack of dict name -> type
         self.cur_ret = None
+        self.fun_names = set()
 
     # -- types
     def conv_type(self, tn):
@@ -1029,7 +1030,12 @@ class Translator(object):
     def pop(self):
         self.scopes.pop()
 
-    def declare(self, name, ty):
+    def declare(self, name, ty, pos=None):
+        if name in self.fun_names and pos is not None:
+            raise Unsupported(pos, "variable name '%s' declared twice in one function" % name,
+                              "the micro-Mojo checker requires every variable name to be unique within a "
+                              "function (no shadowing, no reuse in disjoint scopes); rename one of them")
+        self.fun_names.add(name)
         self.scopes[-1][name] = ty
 
     def lookup(self, name, pos):
@@ -1055,6 +1061,21 @@ class Translator(object):
             return self.pure(e.e)
         if k == "list":
             return all(self.pure(i) for i in e.items)
+        return False
+
+    def no_effects(self, e):
+        """No calls (except len) and no indexing: evaluation can neither print nor fail."""
+        k = e.kind
+        if k in ("int", "bool", "str", "name"):
+            return True
+        if k == "call":
+            return e.fn.kind == "name" and e.fn.name == "len" and all(self.no_effects(a) for a in e.args)
+        if k == "field":
+            return self.no_effects(e.base)
+        if k == "bin":
+            return self.no_effects(e.l) and self.no_effects(e.r)
+        if k in ("not", "neg"):
+            return self.no_effects(e.e)
         return False
 
     # -- places
@@ -1181,6 +1202,11 @@ class Translator(object):
             t = T("EBin", "binop.Eq", a, b)
             return (t if op == "==" else T("ENot", t)), BOOL
         if op in ("and", "or"):
+            if not self.no_effects(e.r):
+                raise Unsupported(e.r.pos, "right operand of '%s' with calls or indexing" % op,
+                                  "Mojo short-circuits 'and'/'or' but the micro-Mojo semantics evaluates both "
+                                  "operands; use nested 'if' statements when the right operand has side effects "
+                                  "or can fail")
             self.want(ta, BOOL, e.l.pos, "left operand of '%s'" % op)
             self.want(tb, BOOL, e.r.pos, "right operand of '%s'" % op)
             return T("EBin", names[op], a, b), BOOL
@@ -1317,7 +1343,7 @@ class Translator(object):
                 self.want(ity, ty, s.init.pos, "initializer of '%s'" % s.name)
                 if ity == NONE:
                     raise TypeProblem(s.init.pos, "initializer has no value")
-            self.declare(s.name, ty)
+            self.declare(s.name, ty, s.pos)
             return [T("SVar", isa_raw_str(s.name), ty_term(ty),
                       T("Some", init) if init is not None else "None")]
         if k == "ref":
@@ -1326,7 +1352,7 @@ class Translator(object):
                     (s.init.kind == "call" and not (s.init.fn.kind == "name" and s.init.fn.name in self.funs
                                                       and self.funs[s.init.fn.name].ret[0] == "ref")):
                 raise TypeProblem(s.init.pos, "a 'ref' binding needs a place or a call returning 'ref'")
-            self.declare(s.name, ity)
+            self.declare(s.name, ity, s.pos)
             return [T("SRef", isa_raw_str(s.name), init)]
         if k == "assign":
             if not self.is_place(s.lhs):
@@ -1419,6 +1445,7 @@ class Translator(object):
     def translate_fun(self, d, sig):
         self.check_origins(d, sig)
         self.scopes = [{}]
+        self.fun_names = set()
         for (c, n, ty) in sig.params:
             self.declare(n, ty)
         self.cur_ret = sig.ret
@@ -1434,6 +1461,7 @@ class Translator(object):
         deinit = "None"
         if d.deinit:
             self.scopes = [{"self": ("Struct", d.name)}]
+            self.fun_names = {"self"}
             self.cur_ret = ("none",)
             deinit = T("Some", self.seq(self.block(d.deinit.body)))
         meths = L([self.translate_fun(m, m.sig) for m in d.meths])

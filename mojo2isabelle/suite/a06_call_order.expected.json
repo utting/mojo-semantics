@@ -1,0 +1,6 @@
+{
+  "status": "ok",
+  "stdout": "show 1\nshow 2\nshow 3\n7\nshow 4\nshow 5\n4 5\n",
+  "stderr": "",
+  "source": "Mojo 1.2.0 (2016d0cd)"
+}
