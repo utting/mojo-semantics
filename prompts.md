@@ -1077,3 +1077,297 @@ The commit includes:
 
 I left resume.sh and skills-lock.json untracked, since they weren't part of this work. Nothing has been pushed.
 
+
+Session
+=======
+Total cost:            $122.11
+Total duration (API):  4h 13m 52s
+Total duration (wall): 4d 19h 55m
+Total code changes:    326 lines added, 0 lines removed
+Usage by model:
+    claude-haiku-5-5:  25.0k input, 4.3k output, 0 cache read, 0 cache write ($0.0046)
+     claude-sonnet-5:  310 input, 164.0k output, 21.4m cache read, 273.3k cache write ($7.01)
+     claude-opus-5-5:  11.7k input, 1.1m output, 309.7m cache read, 3.8m cache write ($115.06)
+   claude-sonnet-5-5:  4 input, 854 output, 8.1k cache read, 11.7k cache write ($0.0385)
+Prompt cache (main):   634 requests · 99% of input tokens from cache · 3 misses (last 2m 28s ago — likely cause: idle past the 1h TTL, 1.5m tokens re-cached) · 3 expected rebuilds (compaction or tool-result clearing) · warm (1h TTL, last activity 2m 3s ago)
+
+
+
+
+
+## 2026-10-31: Translator from Mojo to Micro-Mojo for Differential Testing
+
+> /model Sonnet 5.5
+> I want to be able to validate this formal semantics for Mojo against the actual compiler, using differential testing.  Write a
+  parser and translator (in Python or Mojo) for *.mojo programs that generates Micro_Mojo_Syntax.prog syntax so that the test
+  programs can be evaluated in Isabelle.  The translator should reject any Mojo program that is not within the Micro-Mojo subset
+  with clear explanation of what language feature is not supported.  The end goal is to be able to generate a suite of Mojo test
+  programs, run them through the Mojo compiler to get the actual output values, then translate the programs plus the expected
+  output values into an Isabelle *.thy file that can be evaluated in batch mode.
+
+
+I'll start by reading the syntax theory to see what the translator has to produce.
+
+  Read 1 file, ran 6 shell commands
+
+I've read the syntax and semantics theories. I'm now writing the Python translator, the Isabelle test-harness theory, and a suite driver.
+
+  Write(mojo2isabelle/mojo_translate.py)
+  Wrote 1496 lines to mojo2isabelle/mojo_translate.py
+
+The translator works on Example 1. Next is the Isabelle test-harness theory.
+
+Now the suite driver. It checks, runs against the compiler, and generates the theory.
+
+  Write(mojo2isabelle/mojo_suite.py)
+  Wrote 245 lines to mojo2isabelle/mojo_suite.py
+  (added session Mojo_Tests to ROOT)
+
+While that builds, I'm writing unit tests for the rejection messages.
+
+I'll wait for the build to finish.
+
+⏺ Monitor(wait for Isabelle build of Mojo_Tests)
+Monitor started · task bmy0ncucq · timeout 600s
+
+Build still running (it has to rebuild the parent session first). I'll wait for the background-task notification.
+
+⏺ Monitor(wait for isabelle build to finish)
+Monitor started · task bsgygq2mj · timeout 900s
+
+⏺ Monitor(noop)
+Monitor started · task bmskuspu5 · timeout 1s
+
+The Isabelle build of the Mojo_Tests session is still running. It has to rebuild the parent session first, which takes a few minutes. I'm waiting for it to finish.
+
+✻ Crunched for 9m 15s · done Saturday 4:06 pm
+
+⏺ Monitor "noop" stream ended
+
+That was only my placeholder monitor ending. The real build watcher (bsgygq2mj) is still running, so I'm checking the build output directly.
+
+  Ran 1 shell command
+
+The build is still running. I'll wait for the watcher to report back.
+
+❯ /remote-control
+
+  /remote-control is active · Continue here, on your phone, or at https://claude.ai/code/session_01VuaRWhPjCFAz9HffATwDHh
+
+⏺ Monitor event: [Monitor expired after 10m with no events delivered. Re-arm it if you still need the watch — and widen the filter if silence was une…
+
+  Ran 3 shell commands
+
+The poly process is using about 4 cores and has been running for 12 minutes, which is far too long. I'll stop it and rebuild with progress output to see where it spends the time.
+
+  Ran 1 shell command
+
+⏺ Monitor "wait for isabelle build to finish" script failed (exit 144)
+
+⏺ Monitor(wait for Mojo_Semantics build)
+Monitor started · task bb66fcx4h · timeout 900s
+
+The Mojo_Semantics build is running with progress output. I'm waiting for the watcher to report the result.
+
+✻ Cooked for 2m 19s · done Saturday 4:18 pm
+
+⏺ Monitor "wait for Mojo_Semantics build" stream ended
+
+The failure is at line 53 of the testing theory, the render_examples check. I'll isolate it in a small standalone theory.
+
+  Ran 1 shell command
+
+That works in isolation. The earlier failure may just have been interference from the build processes I'd killed, so I'm rerunning the full build cleanly.
+
+The build is running in the background. I'll pick up when it finishes.
+
+Poly ran out of stack in by eval+ at line 53 of the testing theory. I'll experiment in the PIDE session, which avoids rebuilding everything each time.
+
+  Called isabelle-pide-mcp 6 times
+
+I'm debugging a stack overflow in the Isabelle build of the new testing theory. I'm checking whether the scratch theory has loaded in the PIDE session.
+
+  Called isabelle-pide-mcp
+
+The cleanest fix is to move the testing theory out of the main session into the Mojo_Tests session. That keeps the proven Mojo_Semantics build as it was and isolates the problem.
+
+  Ran 1 shell command
+
+Build started in the background; I'll check the result when it finishes.
+
+❯ how are you going?   (hours later)
+
+  Searched for 1 pattern
+
+Mojo_Semantics builds fine again in 67 s. The hang is in my render_examples proof in the testing theory, so I'm killing the build and reproducing that part in the small standalone theory.
+
+I'm still bisecting the hang in eval. My last script cut the base file at the wrong line, so I'm fixing that.
+
+  Ran 11 shell commands
+
+I've traced the hang to 32-bit Poly/ML, where evaluating numerals around 10⁹ never terminates. I'm setting the translator to reject literals above 10⁶ and switching the render check to a small number before rebuilding. · summary
+
+  Ran 1 shell command
+
+I've started the rebuild in the background and will report once it finishes.
+
+The generated code fails on a constructor name clash: Mut also exists in the region theory, as effect.Mut. I'll qualify the conv and binop constructors in the generated terms.
+
+All 11 generated tests pass, but the translation-check lemma fails, probably because the hand encoding of ex4_bad ends with ;; PASS, which the translator omits. I'm splitting that check into separate lemmas so any other mismatch shows up on its own. · summary
+
+All nine direct equalities pass. The only failure is a vacuous lemma I added for ex4_bad, so I'm removing it and keeping the checker-equivalence lemma.
+
+I've built the translator, a driver that generates the Isabelle test theory, and the Isabelle side that checks the tests. All of it builds, but nothing has been compared against the real Mojo compiler yet. There is no mojo on this machine, so the expected outputs for the 11 example programs are hand-written. The generated tests for those 11 all pass in the Isabelle batch build (isabelle build -D . Mojo_Tests), but that only shows the semantics matches my hand-written expectations. The translator unit tests pass too.
+
+What exists
+
+Everything is in the new mojo2isabelle/ directory, plus the tests/ directory and a change to ROOT.
+
+- mojo_translate.py has a hand-written parser, since Mojo's var, ref, mut and x^ aren't valid Python syntax. It also infers types for var x = e and emits a prog term. Any program outside the subset is rejected with an explanation:
+t.mojo:3:5: unsupported Mojo feature: 'for' loop
+    micro-Mojo has no iteration protocol; write a 'while' loop instead
+  Only the first problem in a file is reported.
+- mojo_suite.py has three steps:
+  - check reports which tests are in the subset.
+  - run builds each test with mojo build and runs the binary. It records ok with stdout, compile_error, or runtime_error in a NAME.expected.json file.
+  - thy generates tests/Micro_Mojo_Tests.thy, with one by eval lemma per test. Once the .expected.json files exist, the Isabelle build can be repeated without Mojo.
+- tests/Micro_Mojo_Testing.thy has the predicates test_output, test_compile_error and test_runtime_error. Programs run after ASAP elaboration, so destructor output appears in Mojo's order. Output is compared as text, so print(a, b) has to render as a b and Bool as True/False.
+- tests/Micro_Mojo_Translation_Check.thy proves the translator's output equals the hand-written encodings in the syntax theory. All the examples match except ex4_bad, where the hand version has a trailing PASS. For that one I prove that check_prog gives the same result for both.
+- examples/ holds the example programs as .mojo files, and README.md documents the tools.
+
+Things to know
+
+- Hand-written expectations. The .expected.json files in examples/ are marked "source": "hand-written". The first real differential test is to run python3 mojo_suite.py run examples/ on a machine with Mojo and rebuild.
+- Integer literals above 10⁶ are rejected. On this machine's 32-bit Poly/ML, eval hangs on numerals around 10⁹, even for plain nat arithmetic in Main. I didn't find the cause. Mojo's 64-bit overflow can't be detected statically either, so keep test values small.
+- Desugarings. a > b becomes not (a <= b) and p += e is only accepted when p has no calls. Both keep evaluation order.
+- and/or don't short-circuit in the model. A test whose right operand has side effects would differ from Mojo.
+- compile_error tests don't compare the message. A test can pass because the checker rejected it for a different reason than the compiler did.
+- Session layout. The test theories are in a separate session, Mojo_Tests, in tests/. Putting the new testing theory in the main session caused the build to hang, so I moved it out. Mojo_Semantics builds as before, in about 67 s.
+
+Nothing from this session is committed. To keep the work, commit mojo2isabelle/, tests/ and ROOT; the other untracked files (hello-world/, resume.sh, skills-lock.json) aren't part of this. Say if you want me to commit.
+
+❯ Well done, getting all the expected output correct without the compiler, then finding that the compiler agrees!  Yes, please commit mojo2isabelle/, tests/ and ROOT.
+
+  Ran 1 shell command
+
+I'm on main, so I'll commit on a new branch instead, and leave out the __pycache__ directory.
+
+  Ran 1 shell command
+
+I committed the work as 19ecb62 on a new branch, differential-testing. I branched because main is the default branch.
+
+The commit contains:
+- mojo2isabelle/: the translator, the suite driver, the translator unit tests, the README, and the 11 example programs with their recorded Mojo 1.2.0 results.
+- tests/: the three Isabelle theories (testing predicates, generated tests, translation check).
+- ROOT: the new Mojo_Tests session.
+
+I left out mojo2isabelle/__pycache__/, prompts.md (you have uncommitted edits), hello-world/, resume.sh and skills-lock.json. Nothing has been pushed. To put it on main, run git switch main && git merge differential-testing, or I can do that.
+
+
+
+❯ write the larger test suite
+
+I'll write a suite aimed at the places the model might be wrong: destruction timing, moves, refs, lists, copies, mut parameters and run-time errors. Then I'll run it all through the compiler and see where the semantics disagrees.
+
+The compiler gave 47 ok, 15 compile_error and 3 runtime_error results. Next I'll generate a theory for the suite and let Isabelle find the disagreements.
+
+The suite build is running in the background. I'll report the disagreements when it finishes.
+
+✻ Baked for 2m 55s · done 1:02 pm
+
+⏺ Background command "export PATH="/Applications/Isabelle2026.app/bin:$PATH"; isabelle build -D . Mojo_Tests > /tmp/suite.log 2>&1; grep -v "running for" /tmp/suite.log | tail -60" completed (exit code 0)
+
+  Ran 1 shell command
+
+Only 4 of 65 tests disagree with the compiler. I'll look at what Mojo did in each, and then at what the semantics produces.
+
+  Ran 1 shell command
+
+Mojo short-circuits and/or and destroys the unused o right away, so built prints after the drops, which the model doesn't reproduce. I'll set up a small debug session over the four programs to see the semantics' real output. · summary
+
+  Ran 1 shell command
+
+The rm glob failed and aborted the cp, so I'm redoing the setup.
+
+  Ran 4 shell commands
+
+The debug theory was empty because the earlier copy had failed. I'm regenerating it properly.
+
+  Ran 4 shell commands
+
+The four disagreements between Mojo and the model are real findings, covering short-circuiting, field destruction order, and an unused parameter, plus one case where the checker rejects a program Mojo accepts. Next I'll find out why the checker rejects that last case and test Mojo's __deinit__ behavior further. · summary
+
+  Ran 1 shell command
+
+Direct experiments confirmed that __deinit__ destroys each field right after its last use, with unused fields like c going first, and that an unused var parameter is destroyed on entry to the callee. I'm now looking into why the checker rejects a08. · summary
+
+  Ran 1 shell command
+
+The checker requires each variable to be declared only once per function, which rejects programs like a08 that reuse names in disjoint scopes, and I'm also rejecting and/or whose right operand has calls or indexing, since the model doesn't short-circuit. I'm adding these rules along with a way to record the two known destruction-timing differences. · summary
+
+  Ran 1 shell command
+
+Both rules work. Next I'll add the two experiment programs to the suite, add known-divergence support to the driver, and add a unit test that every program in rejected/ is in fact rejected.
+
+My quoting produced a syntax error in the divergence code. Fixing that line.
+
+The generated theory now has 65 tests, 4 of them recorded as known divergences. Rebuilding.
+
+  Ran 1 shell command
+
+The build passes. I'll add the new rules and the divergence mechanism to the README.
+
+I wrote a 65-program suite in mojo2isabelle/suite/ and ran it through Mojo 1.2.0. The semantics agrees with the compiler on 61 programs and diverges on 4. The Mojo_Tests session builds cleanly (isabelle build -D . Mojo_Tests).
+
+The programs target likely weak spots: destruction timing, moves, copies, references, lists, mut/var parameters, methods and initializers, and arithmetic and control flow. Mojo gave 47 ok, 15 compile_error and 3 runtime_error results. Two of the run-time errors are the out-of-range and empty-list cases. The semantics reproduced all the compile-error and run-time-error results, so its static checks and error behaviour line up with the compiler, including partial moves, reference invalidation and __init__ field coverage.
+
+I found four places where the model doesn't match Mojo:
+
+1. Unused var parameter. Mojo destroys it on entry to the callee. The model's ASAP elaboration only drops a parameter after a use, so an unused one lives until the callee returns (d09, d14).
+2. Fields inside __deinit__. Mojo destroys each field as soon as it's no longer needed. Fields the body never mentions go first, before the body runs. The model destroys all fields after the body (d05, d13). I confirmed this with a separate experiment.
+3. Short-circuit and/or. Mojo short-circuits; the model evaluates both operands, so a call on the right-hand side prints even when it shouldn't.
+4. Reusing a variable name in a disjoint scope. Mojo allows it, but the model's checker requires unique names within a function.
+
+For 3 and 4 I took the cheap route: the translator now rejects such programs with an explanation, and the two examples are in suite/rejected/, with a unit test that they stay rejected. For 1 and 2 I recorded the four programs in suite/known_divergences.json. They generate as lemma …_diverges: "¬ test", so the build stays green now and fails as soon as the semantics is fixed. Then you remove the entry and the test becomes a normal one.
+
+The README documents all of this. Nothing is committed yet; the changes are on the differential-testing branch and include suite/ and tests/Micro_Mojo_Suite.thy.
+
+Items 1 and 2 are the most useful result of this round. Fixing them means changing the elab_body function in Micro_Mojo_Static.thy, and for item 2 probably also how __deinit__ destruction works in the interpreter. I'd expect the soundness proofs to survive, but I haven't tried. Want me to fix them, or commit the suite first?
+
+❯ commit the suite first, then fix items 1 and 2.
+
+Committed the suite as d27b776. Item 1 is edited in elab_body and the Mojo_Semantics build is running. Meanwhile I'm reading how the interpreter handles __deinit__, for item 2.
+
+  Searched for 1 pattern, ran 3 shell commands
+
+⏺ Monitor(Wait for Mojo_Semantics build)
+Monitor started · task bh5n2ntsj · timeout 300s
+Allowed by auto mode
+
+  Searched for 1 pattern
+
+Item 1 is edited and its build is running now. I'm reading the checker to gauge the work for item 2, which would need partial-field tracking in chk_stmt for SDrop and an elaboration step over fields. · summary
+
+⏺ Monitor "Wait for Mojo_Semantics build" stream ended
+
+  Searched for 1 pattern
+
+Both failures are the expected _diverges lemmas for d09 and d14, and the semantics now matches Mojo on those programs while the soundness theories still build. Next I'll drop them from the divergence list and regenerate. · summary
+
+The suite is committed, and item 1 (unused var parameters) is fixed and committed. Item 2 (field-wise destruction in __deinit__) is not started, because it's a much bigger change than item 1.
+
+- Suite: committed as d27b776 on differential-testing.
+- Item 1: elab_body in Micro_Mojo_Static.thy now starts the body with drops of var parameters that aren't live on entry. This is commit 881ba35.
+  - The _diverges lemmas for d09 and d14 failed, which showed the model now matches Mojo, so I removed those two entries from known_divergences.json.
+  - The core theories (soundness included) and Mojo_Tests both build.
+  - I also updated the README.
+- Item 2: d05 and d13 are still recorded as known divergences. Fixing them needs real changes to the checker and proofs:
+  - Checker state: a_init tracks whole variables only, and SDrop accepts only PVar of an owned local. Dropping self.a early would need field-level initialization tracking, plus an SDrop rule for fields of deinit self.
+  - Elaboration: elab is built around variable names. It would need to treat self.f places as droppable, destroying unused fields on entry and the rest after their last use.
+  - Interpreter: drop_path already skips fields that are VUndef, so it needs little change.
+  - Soundness proofs: the checker-state invariant changes, so I'd expect to redo parts of Micro_Mojo_Soundness_Stmt and Micro_Mojo_Soundness_Calls.
+
+Should I go ahead with item 2, or leave __deinit__ as a documented divergence? The divergence only shows up when a struct has fields with their own destructors and a __deinit__ that prints.
+
+❯ Yes.  Leave item 2 as a documented divergence.
+
