@@ -719,7 +719,7 @@ interpretation paths: mojo_regions path_owner .
 text \<open>
   We use @{text path_owner} only through this applied equation. Unfolding
   @{text path_owner_def} itself would rewrite the parameter of
-  @{text "paths.ancestor_at"} into a \<lambda>-term, after which the interpreted
+  @{text "paths.ancestor_at"} into a @{text "\<lambda>"}-term, after which the interpreted
   equations of @{text ancestor_at} no longer match.
 \<close>
 

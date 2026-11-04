@@ -1,0 +1,147 @@
+\snip{ast_ty}{1}{2}{%
+\isakeywordONE{datatype}\isamarkupfalse%
+\ ty\ {\isacharequal}{\kern0pt}\ TInt\ {\isacharbar}{\kern0pt}\ TBool\ {\isacharbar}{\kern0pt}\ TStr\ {\isacharbar}{\kern0pt}\ TNone\ {\isacharbar}{\kern0pt}\ TStruct\ name\ {\isacharbar}{\kern0pt}\ TList\ ty%
+}%endsnip
+\snip{ast_conv}{1}{2}{%
+\isakeywordONE{datatype}\isamarkupfalse%
+\ conv\ {\isacharequal}{\kern0pt}\ Imm\ {\isacharbar}{\kern0pt}\ Mut\ {\isacharbar}{\kern0pt}\ Var\ {\isacharbar}{\kern0pt}\ Ref\ {\isacharbar}{\kern0pt}\ Out\ {\isacharbar}{\kern0pt}\ Deinit%
+}%endsnip
+\snip{ast_binop}{1}{2}{%
+\isakeywordONE{datatype}\isamarkupfalse%
+\ binop\ {\isacharequal}{\kern0pt}\ Add\ {\isacharbar}{\kern0pt}\ Sub\ {\isacharbar}{\kern0pt}\ Mul\ {\isacharbar}{\kern0pt}\ Lt\ {\isacharbar}{\kern0pt}\ Le\ {\isacharbar}{\kern0pt}\ Eq\ {\isacharbar}{\kern0pt}\ And\ {\isacharbar}{\kern0pt}\ Or%
+}%endsnip
+\snip{ast_placeexpr}{1}{2}{%
+\isakeywordONE{datatype}\isamarkupfalse%
+\ place\ {\isacharequal}{\kern0pt}\isanewline
+\ \ \ \ PVar\ vname\ %
+\isamarkupcmt{\isa{x}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ PField\ place\ fname\ %
+\isamarkupcmt{\isa{p{\isachardot}{\kern0pt}f}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ PIndex\ place\ expr\ %
+\isamarkupcmt{\isa{p{\isacharbrackleft}{\kern0pt}i{\isacharbrackright}{\kern0pt}}%
+}\isanewline
+\isakeywordTWO{and}\ expr\ {\isacharequal}{\kern0pt}\isanewline
+\ \ \ \ EInt\ int\ %
+\isamarkupcmt{\isa{{\isadigit{4}}{\isadigit{2}}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ EBool\ bool\ %
+\isamarkupcmt{\isa{True}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ EStr\ string\ %
+\isamarkupcmt{\isa{{\isachardoublequote}{\kern0pt}hi{\isachardoublequote}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}only\ as\ a\ print\ argument{\isacharparenright}{\kern0pt}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ EPlace\ place\ %
+\isamarkupcmt{\isa{x\ \ {\isacharparenleft}{\kern0pt}a\ place\ used\ as\ a\ value{\isacharcomma}{\kern0pt}\ or\ as\ a\ reference\ argument{\isacharparenright}{\kern0pt}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ ETake\ place\ %
+\isamarkupcmt{\isa{p{\isacharcircum}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}transfer{\isacharparenright}{\kern0pt}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ ECopy\ place\ %
+\isamarkupcmt{\isa{p{\isachardot}{\kern0pt}copy{\isacharparenleft}{\kern0pt}{\isacharparenright}{\kern0pt}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ ECall\ name\ {\isachardoublequoteopen}expr\ list{\isachardoublequoteclose}\ %
+\isamarkupcmt{\isa{f{\isacharparenleft}{\kern0pt}a{\isacharcomma}{\kern0pt}\ b{\isacharparenright}{\kern0pt}\ \ or\ \ Res{\isacharparenleft}{\kern0pt}{\isadigit{1}}{\isacharparenright}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}call\ or\ construction{\isacharparenright}{\kern0pt}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ EMeth\ place\ name\ {\isachardoublequoteopen}expr\ list{\isachardoublequoteclose}\ %
+\isamarkupcmt{\isa{p{\isachardot}{\kern0pt}m{\isacharparenleft}{\kern0pt}a{\isacharparenright}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}method\ call{\isacharparenright}{\kern0pt}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ EBin\ binop\ expr\ expr\ %
+\isamarkupcmt{\isa{a\ {\isacharplus}{\kern0pt}\ b}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ ENot\ expr\ %
+\isamarkupcmt{\isa{not\ e}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ ELen\ place\ %
+\isamarkupcmt{\isa{len{\isacharparenleft}{\kern0pt}p{\isacharparenright}{\kern0pt}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ EList\ {\isachardoublequoteopen}expr\ list{\isachardoublequoteclose}\ %
+\isamarkupcmt{\isa{{\isacharbrackleft}{\kern0pt}{\isadigit{1}}{\isacharcomma}{\kern0pt}\ {\isadigit{2}}{\isacharcomma}{\kern0pt}\ {\isadigit{3}}{\isacharbrackright}{\kern0pt}}%
+}%
+}%endsnip
+\snip{ast_stmt}{1}{2}{%
+\isakeywordONE{datatype}\isamarkupfalse%
+\ stmt\ {\isacharequal}{\kern0pt}\isanewline
+\ \ \ \ SPass\ %
+\isamarkupcmt{\isa{pass}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ SSeq\ stmt\ stmt\ %
+\isamarkupcmt{\isa{s{\isadigit{1}}\ followed\ by\ s{\isadigit{2}}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ SVar\ vname\ ty\ {\isachardoublequoteopen}expr\ option{\isachardoublequoteclose}\ %
+\isamarkupcmt{\isa{var\ x{\isacharcolon}{\kern0pt}\ T\ {\isacharequal}{\kern0pt}\ e\ \ or\ \ var\ x{\isacharcolon}{\kern0pt}\ T}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ SRef\ vname\ expr\ %
+\isamarkupcmt{\isa{ref\ r\ {\isacharequal}{\kern0pt}\ e}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ SAssign\ place\ expr\ %
+\isamarkupcmt{\isa{p\ {\isacharequal}{\kern0pt}\ e}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ SExpr\ expr\ %
+\isamarkupcmt{\isa{f{\isacharparenleft}{\kern0pt}x{\isacharparenright}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}result\ discarded{\isacharparenright}{\kern0pt}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ SPrint\ {\isachardoublequoteopen}expr\ list{\isachardoublequoteclose}\ %
+\isamarkupcmt{\isa{print{\isacharparenleft}{\kern0pt}a{\isacharcomma}{\kern0pt}\ b{\isacharparenright}{\kern0pt}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ SIf\ expr\ stmt\ stmt\ %
+\isamarkupcmt{\isa{if\ c{\isacharcolon}{\kern0pt}\ s{\isadigit{1}}\ else{\isacharcolon}{\kern0pt}\ s{\isadigit{2}}}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ SWhile\ expr\ stmt\ %
+\isamarkupcmt{\isa{while\ c{\isacharcolon}{\kern0pt}\ s}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ SReturn\ {\isachardoublequoteopen}expr\ option{\isachardoublequoteclose}\ %
+\isamarkupcmt{\isa{return\ e\ \ or\ \ return}%
+}\isanewline
+\ \ {\isacharbar}{\kern0pt}\ SDrop\ place\ %
+\isamarkupcmt{inserted by ASAP elaboration%
+}%
+}%endsnip
+\snip{ast_ret}{1}{2}{%
+\isakeywordONE{datatype}\isamarkupfalse%
+\ ret\ {\isacharequal}{\kern0pt}\ RNone\ {\isacharbar}{\kern0pt}\ RVal\ ty\ {\isacharbar}{\kern0pt}\ RRef\ {\isachardoublequoteopen}vname\ list{\isachardoublequoteclose}\ ty%
+}%endsnip
+\snip{ast_fundecl}{1}{2}{%
+\isakeywordONE{datatype}\isamarkupfalse%
+\ fundecl\ {\isacharequal}{\kern0pt}\ Fun\isanewline
+\ \ {\isacharparenleft}{\kern0pt}fd{\isacharunderscore}{\kern0pt}name{\isacharcolon}{\kern0pt}\ name{\isacharparenright}{\kern0pt}\isanewline
+\ \ {\isacharparenleft}{\kern0pt}fd{\isacharunderscore}{\kern0pt}params{\isacharcolon}{\kern0pt}\ {\isachardoublequoteopen}{\isacharparenleft}{\kern0pt}conv\ {\isasymtimes}\ vname\ {\isasymtimes}\ ty{\isacharparenright}{\kern0pt}\ list{\isachardoublequoteclose}{\isacharparenright}{\kern0pt}\isanewline
+\ \ {\isacharparenleft}{\kern0pt}fd{\isacharunderscore}{\kern0pt}ret{\isacharcolon}{\kern0pt}\ ret{\isacharparenright}{\kern0pt}\isanewline
+\ \ {\isacharparenleft}{\kern0pt}fd{\isacharunderscore}{\kern0pt}body{\isacharcolon}{\kern0pt}\ stmt{\isacharparenright}{\kern0pt}%
+}%endsnip
+\snip{ast_structdecl}{1}{2}{%
+\isakeywordONE{datatype}\isamarkupfalse%
+\ structdecl\ {\isacharequal}{\kern0pt}\ Struct\isanewline
+\ \ {\isacharparenleft}{\kern0pt}sd{\isacharunderscore}{\kern0pt}name{\isacharcolon}{\kern0pt}\ name{\isacharparenright}{\kern0pt}\isanewline
+\ \ {\isacharparenleft}{\kern0pt}sd{\isacharunderscore}{\kern0pt}fields{\isacharcolon}{\kern0pt}\ {\isachardoublequoteopen}{\isacharparenleft}{\kern0pt}fname\ {\isasymtimes}\ ty{\isacharparenright}{\kern0pt}\ list{\isachardoublequoteclose}{\isacharparenright}{\kern0pt}\isanewline
+\ \ {\isacharparenleft}{\kern0pt}sd{\isacharunderscore}{\kern0pt}copyable{\isacharcolon}{\kern0pt}\ bool{\isacharparenright}{\kern0pt}\isanewline
+\ \ {\isacharparenleft}{\kern0pt}sd{\isacharunderscore}{\kern0pt}fieldwise{\isacharcolon}{\kern0pt}\ bool{\isacharparenright}{\kern0pt}\isanewline
+\ \ {\isacharparenleft}{\kern0pt}sd{\isacharunderscore}{\kern0pt}init{\isacharcolon}{\kern0pt}\ {\isachardoublequoteopen}fundecl\ option{\isachardoublequoteclose}{\isacharparenright}{\kern0pt}\isanewline
+\ \ {\isacharparenleft}{\kern0pt}sd{\isacharunderscore}{\kern0pt}deinit{\isacharcolon}{\kern0pt}\ {\isachardoublequoteopen}stmt\ option{\isachardoublequoteclose}{\isacharparenright}{\kern0pt}\isanewline
+\ \ {\isacharparenleft}{\kern0pt}sd{\isacharunderscore}{\kern0pt}methods{\isacharcolon}{\kern0pt}\ {\isachardoublequoteopen}fundecl\ list{\isachardoublequoteclose}{\isacharparenright}{\kern0pt}%
+}%endsnip
+\snip{ast_prog}{1}{2}{%
+\isakeywordONE{datatype}\isamarkupfalse%
+\ prog\ {\isacharequal}{\kern0pt}\ Prog\ {\isacharparenleft}{\kern0pt}p{\isacharunderscore}{\kern0pt}structs{\isacharcolon}{\kern0pt}\ {\isachardoublequoteopen}structdecl\ list{\isachardoublequoteclose}{\isacharparenright}{\kern0pt}\ {\isacharparenleft}{\kern0pt}p{\isacharunderscore}{\kern0pt}funs{\isacharcolon}{\kern0pt}\ {\isachardoublequoteopen}fundecl\ list{\isachardoublequoteclose}{\isacharparenright}{\kern0pt}%
+}%endsnip
+\snip{ex_res_struct}{1}{2}{%
+\isakeywordONE{definition}\isamarkupfalse%
+\ res{\isacharunderscore}{\kern0pt}struct\ {\isacharcolon}{\kern0pt}{\isacharcolon}{\kern0pt}\ structdecl\ \isakeywordTWO{where}\isanewline
+\ \ {\isachardoublequoteopen}res{\isacharunderscore}{\kern0pt}struct\ {\isacharequal}{\kern0pt}\ Struct\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}Res{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}\ {\isacharbrackleft}{\kern0pt}{\isacharparenleft}{\kern0pt}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}id{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isacharcomma}{\kern0pt}\ TInt{\isacharparenright}{\kern0pt}{\isacharbrackright}{\kern0pt}\ False\ True\ None\isanewline
+\ \ \ \ \ {\isacharparenleft}{\kern0pt}Some\ {\isacharparenleft}{\kern0pt}PRINT\ {\isacharbrackleft}{\kern0pt}Txt\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}drop{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isacharcomma}{\kern0pt}\ {\isasymlangle}{\isasymsection}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}self{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymbullet}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}id{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymrangle}{\isacharbrackright}{\kern0pt}{\isacharparenright}{\kern0pt}{\isacharparenright}{\kern0pt}\ {\isacharbrackleft}{\kern0pt}{\isacharbrackright}{\kern0pt}{\isachardoublequoteclose}%
+}%endsnip
+\snip{ex_ex1_main}{1}{2}{%
+\isakeywordONE{definition}\isamarkupfalse%
+\ ex{\isadigit{1}}{\isacharunderscore}{\kern0pt}main\ {\isacharcolon}{\kern0pt}{\isacharcolon}{\kern0pt}\ stmt\ \isakeywordTWO{where}\isanewline
+\ \ {\isachardoublequoteopen}ex{\isadigit{1}}{\isacharunderscore}{\kern0pt}main\ {\isacharequal}{\kern0pt}\isanewline
+\ \ \ \ \ {\isacharparenleft}{\kern0pt}VAR\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}a{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}\ {\isasymZtypecolon}\ Res\ {\isacharcolon}{\kern0pt}{\isacharcolon}{\kern0pt}{\isacharequal}{\kern0pt}\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}Res{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymlbrace}{\isacharbrackleft}{\kern0pt}N\ {\isadigit{1}}{\isacharbrackright}{\kern0pt}{\isasymrbrace}\ {\isacharsemicolon}{\kern0pt}{\isacharsemicolon}{\kern0pt}\isanewline
+\ \ \ \ \ VAR\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}b{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}\ {\isasymZtypecolon}\ Res\ {\isacharcolon}{\kern0pt}{\isacharcolon}{\kern0pt}{\isacharequal}{\kern0pt}\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}Res{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymlbrace}{\isacharbrackleft}{\kern0pt}N\ {\isadigit{2}}{\isacharbrackright}{\kern0pt}{\isasymrbrace}\ {\isacharsemicolon}{\kern0pt}{\isacharsemicolon}{\kern0pt}\isanewline
+\ \ \ \ \ EVAL\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}bump{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymlbrace}{\isacharbrackleft}{\kern0pt}{\isasymlangle}{\isasymsection}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}a{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymrangle}{\isacharcomma}{\kern0pt}\ N\ {\isadigit{1}}{\isadigit{0}}{\isacharbrackright}{\kern0pt}{\isasymrbrace}\ {\isacharsemicolon}{\kern0pt}{\isacharsemicolon}{\kern0pt}\isanewline
+\ \ \ \ \ REF\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}r{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}\ {\isacharcolon}{\kern0pt}{\isacharcolon}{\kern0pt}{\isacharequal}{\kern0pt}\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}pick{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymlbrace}{\isacharbrackleft}{\kern0pt}TT{\isacharcomma}{\kern0pt}\ {\isasymlangle}{\isasymsection}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}a{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymrangle}{\isacharcomma}{\kern0pt}\ {\isasymlangle}{\isasymsection}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}b{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymrangle}{\isacharbrackright}{\kern0pt}{\isasymrbrace}\ {\isacharsemicolon}{\kern0pt}{\isacharsemicolon}{\kern0pt}\isanewline
+\ \ \ \ \ PRINT\ {\isacharbrackleft}{\kern0pt}{\isasymlangle}{\isasymsection}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}r{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymbullet}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}id{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymrangle}{\isacharbrackright}{\kern0pt}\ {\isacharsemicolon}{\kern0pt}{\isacharsemicolon}{\kern0pt}\isanewline
+\ \ \ \ \ EVAL\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}consume{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymlbrace}{\isacharbrackleft}{\kern0pt}{\isasymsection}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}a{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}\isactrlsup {\isacharcircum}{\kern0pt}{\isacharbrackright}{\kern0pt}{\isasymrbrace}\ {\isacharsemicolon}{\kern0pt}{\isacharsemicolon}{\kern0pt}\isanewline
+\ \ \ \ \ VAR\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}l{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}\ {\isasymZtypecolon}\ TList\ TInt\ {\isacharcolon}{\kern0pt}{\isacharcolon}{\kern0pt}{\isacharequal}{\kern0pt}\ LIST\ {\isacharbrackleft}{\kern0pt}N\ {\isadigit{1}}{\isacharcomma}{\kern0pt}\ N\ {\isadigit{2}}{\isacharcomma}{\kern0pt}\ N\ {\isadigit{3}}{\isacharbrackright}{\kern0pt}\ {\isacharsemicolon}{\kern0pt}{\isacharsemicolon}{\kern0pt}\isanewline
+\ \ \ \ \ REF\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}e{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}\ {\isacharcolon}{\kern0pt}{\isacharcolon}{\kern0pt}{\isacharequal}{\kern0pt}\ {\isasymlangle}{\isasymsection}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}l{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymlbrakk}N\ {\isadigit{0}}{\isasymrbrakk}{\isasymrangle}\ {\isacharsemicolon}{\kern0pt}{\isacharsemicolon}{\kern0pt}\isanewline
+\ \ \ \ \ PRINT\ {\isacharbrackleft}{\kern0pt}{\isasymlangle}{\isasymsection}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}e{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymrangle}{\isacharbrackright}{\kern0pt}\ {\isacharsemicolon}{\kern0pt}{\isacharsemicolon}{\kern0pt}\isanewline
+\ \ \ \ \ EVAL\ {\isasymsection}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}l{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymbullet}{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}append{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isasymlbrace}{\isacharbrackleft}{\kern0pt}N\ {\isadigit{4}}{\isacharbrackright}{\kern0pt}{\isasymrbrace}{\isacharparenright}{\kern0pt}{\isachardoublequoteclose}%
+}%endsnip

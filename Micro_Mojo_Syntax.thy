@@ -74,7 +74,9 @@ text \<open>
   printed), and @{text TNone} is the type of calls that return nothing.
 \<close>
 
+text_raw \<open>\snip{ast_ty}{1}{2}{%\<close>
 datatype ty = TInt | TBool | TStr | TNone | TStruct name | TList ty
+text_raw \<open>}%endsnip\<close>
 
 text \<open>
   Argument conventions. @{text "Out"} is only used for the @{text "self"}
@@ -84,9 +86,13 @@ text \<open>
   @{text "var"} convention.
 \<close>
 
+text_raw \<open>\snip{ast_conv}{1}{2}{%\<close>
 datatype conv = Imm | Mut | Var | Ref | Out | Deinit
+text_raw \<open>}%endsnip\<close>
 
+text_raw \<open>\snip{ast_binop}{1}{2}{%\<close>
 datatype binop = Add | Sub | Mul | Lt | Le | Eq | And | Or
+text_raw \<open>}%endsnip\<close>
 
 text \<open>
   Places and expressions are mutually recursive because an index
@@ -101,49 +107,57 @@ text \<open>
       receiver is a place, which is all the examples need.
 \<close>
 
+text_raw \<open>\snip{ast_placeexpr}{1}{2}{%\<close>
 datatype place =
-    PVar vname
-  | PField place fname
-  | PIndex place expr
+    PVar vname \<comment> \<open>@{text \<open>x\<close>}\<close>
+  | PField place fname \<comment> \<open>@{text \<open>p.f\<close>}\<close>
+  | PIndex place expr \<comment> \<open>@{text \<open>p[i]\<close>}\<close>
 and expr =
-    EInt int
-  | EBool bool
-  | EStr string
-  | EPlace place
-  | ETake place
-  | ECopy place
-  | ECall name "expr list"
-  | EMeth place name "expr list"
-  | EBin binop expr expr
-  | ENot expr
-  | ELen place
-  | EList "expr list"
+    EInt int \<comment> \<open>@{text \<open>42\<close>}\<close>
+  | EBool bool \<comment> \<open>@{text \<open>True\<close>}\<close>
+  | EStr string \<comment> \<open>@{text \<open>"hi"  (only as a print argument)\<close>}\<close>
+  | EPlace place \<comment> \<open>@{text \<open>x  (a place used as a value, or as a reference argument)\<close>}\<close>
+  | ETake place \<comment> \<open>@{text \<open>p^  (transfer)\<close>}\<close>
+  | ECopy place \<comment> \<open>@{text \<open>p.copy()\<close>}\<close>
+  | ECall name "expr list" \<comment> \<open>@{text \<open>f(a, b)  or  Res(1)  (call or construction)\<close>}\<close>
+  | EMeth place name "expr list" \<comment> \<open>@{text \<open>p.m(a)  (method call)\<close>}\<close>
+  | EBin binop expr expr \<comment> \<open>@{text \<open>a + b\<close>}\<close>
+  | ENot expr \<comment> \<open>@{text \<open>not e\<close>}\<close>
+  | ELen place \<comment> \<open>@{text \<open>len(p)\<close>}\<close>
+  | EList "expr list" \<comment> \<open>@{text \<open>[1, 2, 3]\<close>}\<close>
+text_raw \<open>}%endsnip\<close>
 
+text_raw \<open>\snip{ast_stmt}{1}{2}{%\<close>
 datatype stmt =
-    SPass
-  | SSeq stmt stmt
-  | SVar vname ty "expr option"   \<comment> \<open>@{text "var x: T = e"} or @{text "var x: T"}\<close>
-  | SRef vname expr               \<comment> \<open>@{text "ref r = e"}\<close>
-  | SAssign place expr
-  | SExpr expr
-  | SPrint "expr list"
-  | SIf expr stmt stmt
-  | SWhile expr stmt
-  | SReturn "expr option"
-  | SDrop place                   \<comment> \<open>inserted by ASAP elaboration\<close>
+    SPass \<comment> \<open>@{text \<open>pass\<close>}\<close>
+  | SSeq stmt stmt \<comment> \<open>@{text \<open>s1 followed by s2\<close>}\<close>
+  | SVar vname ty "expr option" \<comment> \<open>@{text \<open>var x: T = e  or  var x: T\<close>}\<close>
+  | SRef vname expr \<comment> \<open>@{text \<open>ref r = e\<close>}\<close>
+  | SAssign place expr \<comment> \<open>@{text \<open>p = e\<close>}\<close>
+  | SExpr expr \<comment> \<open>@{text \<open>f(x)  (result discarded)\<close>}\<close>
+  | SPrint "expr list" \<comment> \<open>@{text \<open>print(a, b)\<close>}\<close>
+  | SIf expr stmt stmt \<comment> \<open>@{text \<open>if c: s1 else: s2\<close>}\<close>
+  | SWhile expr stmt \<comment> \<open>@{text \<open>while c: s\<close>}\<close>
+  | SReturn "expr option" \<comment> \<open>@{text \<open>return e  or  return\<close>}\<close>
+  | SDrop place \<comment> \<open>inserted by ASAP elaboration\<close>
+text_raw \<open>}%endsnip\<close>
 
 text \<open>
   Return specifications: no result, a value, or a reference whose origin is
   the union of the listed parameters (@{text "-> ref[a, b] T"}).
 \<close>
 
+text_raw \<open>\snip{ast_ret}{1}{2}{%\<close>
 datatype ret = RNone | RVal ty | RRef "vname list" ty
+text_raw \<open>}%endsnip\<close>
 
+text_raw \<open>\snip{ast_fundecl}{1}{2}{%\<close>
 datatype fundecl = Fun
   (fd_name: name)
   (fd_params: "(conv \<times> vname \<times> ty) list")
   (fd_ret: ret)
   (fd_body: stmt)
+text_raw \<open>}%endsnip\<close>
 
 text \<open>
   A struct declaration: name, fields, whether it is @{text "Copyable"},
@@ -153,6 +167,7 @@ text \<open>
   (whose first parameter is @{text "self"} with some convention).
 \<close>
 
+text_raw \<open>\snip{ast_structdecl}{1}{2}{%\<close>
 datatype structdecl = Struct
   (sd_name: name)
   (sd_fields: "(fname \<times> ty) list")
@@ -161,8 +176,11 @@ datatype structdecl = Struct
   (sd_init: "fundecl option")
   (sd_deinit: "stmt option")
   (sd_methods: "fundecl list")
+text_raw \<open>}%endsnip\<close>
 
+text_raw \<open>\snip{ast_prog}{1}{2}{%\<close>
 datatype prog = Prog (p_structs: "structdecl list") (p_funs: "fundecl list")
+text_raw \<open>}%endsnip\<close>
 
 section \<open>Mojo-like notation\<close>
 
@@ -276,9 +294,11 @@ struct Res:
 
 abbreviation "Res \<equiv> TStruct ''Res''"
 
+text_raw \<open>\snip{ex_res_struct}{1}{2}{%\<close>
 definition res_struct :: structdecl where
   "res_struct = Struct ''Res'' [(''id'', TInt)] False True None
      (Some (PRINT [Txt ''drop'', \<langle>\<section>''self''\<bullet>''id''\<rangle>])) []"
+text_raw \<open>}%endsnip\<close>
 
 text \<open>
 @{verbatim [display]
@@ -326,6 +346,7 @@ text \<open>
                                  # drop 2 (b's destructor)\<close>}
 \<close>
 
+text_raw \<open>\snip{ex_ex1_main}{1}{2}{%\<close>
 definition ex1_main :: stmt where
   "ex1_main =
      (VAR ''a'' \<Ztypecolon> Res ::= ''Res''\<lbrace>[N 1]\<rbrace> ;;
@@ -338,6 +359,7 @@ definition ex1_main :: stmt where
      REF ''e'' ::= \<langle>\<section>''l''\<lbrakk>N 0\<rbrakk>\<rangle> ;;
      PRINT [\<langle>\<section>''e''\<rangle>] ;;
      EVAL \<section>''l''\<bullet>''append''\<lbrace>[N 4]\<rbrace>)"
+text_raw \<open>}%endsnip\<close>
 
 definition ex1 :: prog where
   "ex1 = Prog [res_struct]

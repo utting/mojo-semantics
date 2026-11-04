@@ -1,0 +1,27 @@
+\snip{invoke_eqn}{1}{2}{%
+%
+\begin{isamarkuptext}%
+%
+\begin{isabelle}%
+\isaconst{invoke}\ \isavar{P}\ {\isacharparenleft}{\kern0pt}\isaconst{Suc}\ \isavar{n}{\isacharparenright}{\kern0pt}\ \isavar{st}\ \isavar{fd}\ \isavar{env}\ {\isacharequal}{\kern0pt}\isanewline
+\isaconst{exec}\ \isavar{P}\ \isavar{n}\ {\isacharparenleft}{\kern0pt}\isaconst{fd{\isacharunderscore}{\kern0pt}ret}\ \isavar{fd}{\isacharparenright}{\kern0pt}\ \isavar{env}\ \isavar{st}\ {\isacharparenleft}{\kern0pt}\isaconst{fd{\isacharunderscore}{\kern0pt}body}\ \isavar{fd}{\isacharparenright}{\kern0pt}\ {\isasymbind}\isanewline
+{\isacharparenleft}{\kern0pt}{\isasymlambda}{\isacharparenleft}{\kern0pt}\isabound{oc}{\isacharcomma}{\kern0pt}\ \isabound{env}{\isacharcomma}{\kern0pt}\ \isabound{st}{\isacharparenright}{\kern0pt}{\isachardot}{\kern0pt}\isanewline
+\isaindent{{\isacharparenleft}{\kern0pt}\ \ \ }\isaconst{cleanup}\ \isavar{P}\ \isavar{n}\ \isabound{st}\ \isabound{env}\ {\isasymbind}\isanewline
+\isaindent{{\isacharparenleft}{\kern0pt}\ \ \ }{\isacharparenleft}{\kern0pt}{\isasymlambda}\isabound{st}{\isachardot}{\kern0pt}\ \isaconst{Ok}\ {\isacharparenleft}{\kern0pt}case\ \isabound{oc}\ of\ \isaconst{Normal}\ {\isasymRightarrow}\ \isaconst{RUnit}\ {\isacharbar}{\kern0pt}\ \isaconst{Returned}\ \isabound{r}\ {\isasymRightarrow}\ \isabound{r}{\isacharcomma}{\kern0pt}\ \isabound{st}{\isacharparenright}{\kern0pt}{\isacharparenright}{\kern0pt}{\isacharparenright}{\kern0pt}%
+\end{isabelle}%
+\end{isamarkuptext}\isamarkuptrue%
+%
+}%endsnip
+\snip{run_eqn}{1}{2}{%
+%
+\begin{isamarkuptext}%
+%
+\begin{isabelle}%
+\isaconst{run}\ \isavar{fuel}\ \isavar{P}\ {\isacharequal}{\kern0pt}\isanewline
+{\isacharparenleft}{\kern0pt}case\ \isaconst{find{\isacharunderscore}{\kern0pt}fun}\ \isavar{P}\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}main{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}\ of\ \isaconst{None}\ {\isasymRightarrow}\ \isaconst{Err}\ {\isacharparenleft}{\kern0pt}\isaconst{ErrUnknown}\ {\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}main{\isacharprime}{\kern0pt}{\isacharprime}{\kern0pt}{\isacharparenright}{\kern0pt}\isanewline
+\isaindent{{\isacharparenleft}{\kern0pt}}{\isacharbar}{\kern0pt}\ \isaconst{Some}\ \isabound{fd}\ {\isasymRightarrow}\isanewline
+\isaindent{{\isacharparenleft}{\kern0pt}{\isacharbar}{\kern0pt}\ \ \ }\isaconst{invoke}\ \isavar{P}\ \isavar{fuel}\ \isaconst{init{\isacharunderscore}{\kern0pt}state}\ \isabound{fd}\ {\isacharbrackleft}{\kern0pt}{\isacharbrackright}{\kern0pt}\ {\isasymbind}\ {\isacharparenleft}{\kern0pt}{\isasymlambda}{\isacharparenleft}{\kern0pt}\isabound{uu}{\isacharcomma}{\kern0pt}\ \isabound{st}{\isacharparenright}{\kern0pt}{\isachardot}{\kern0pt}\ \isaconst{Ok}\ {\isacharparenleft}{\kern0pt}\isaconst{out{\isacharunderscore}{\kern0pt}lines}\ \isabound{st}{\isacharparenright}{\kern0pt}{\isacharparenright}{\kern0pt}{\isacharparenright}{\kern0pt}%
+\end{isabelle}%
+\end{isamarkuptext}\isamarkuptrue%
+%
+}%endsnip

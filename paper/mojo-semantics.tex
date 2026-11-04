@@ -1,0 +1,753 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{booktabs}
+\usepackage{amsmath,amssymb}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{isabelle,isabellesym}
+\isabellestyle{it}
+\renewcommand{\isachardoublequote}{\textquotedbl}
+\renewcommand{\isachardoublequoteopen}{\textquotedbl}
+\renewcommand{\isachardoublequoteclose}{\textquotedbl}
+\usepackage[hidelinks]{hyperref}
+% Snippets of the Isabelle theories, extracted by make-snippets.sh
+\newcommand{\usesnip}[1]{\csname #1\endcsname}
+\newcommand{\snip}[4]{\expandafter\newcommand\csname #1\endcsname{#4}}
+\input{snippets-syntax}
+\input{snippets-interp}
+
+\lstdefinelanguage{Mojo}{
+  morekeywords={def,struct,var,ref,mut,out,deinit,fn,if,else,while,return,print,for,raises,self,True,False,and,or,not,pass,from,import},
+  sensitive=true, morecomment=[l]{\#}, morestring=[b]"}
+\lstset{language=Mojo,basicstyle=\ttfamily\small,keywordstyle=\bfseries,
+  commentstyle=\itshape\color{gray},columns=fullflexible,xleftmargin=1em,
+  aboveskip=0.6em,belowskip=0.4em,showstringspaces=false}
+\lstdefinestyle{out}{language={},basicstyle=\ttfamily\footnotesize}
+
+\newenvironment{snippet}{\begin{quote}\small}{\end{quote}}
+\newcommand{\micro}{micro-Mojo}
+\newcommand{\IHOL}{Isabelle/HOL}
+\newcommand{\code}[1]{\texttt{#1}}
+
+\title{A Machine-Checked Semantics for the Ownership Rules of Mojo,\\
+       Validated by Differential Testing Against the Compiler}
+\author{Mark Utting\\ \small (with the assistance of Claude; see Acknowledgements)}
+\date{\today\\[0.3em]\small Draft}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Mojo is a new systems programming language that combines Python-like syntax
+with value ownership, argument conventions, first-class \emph{origins} and
+as-soon-as-possible (ASAP) destruction of values. Its memory-safety rules are
+described in prose and by the behaviour of a closed, rapidly evolving compiler;
+there is no formal specification. We report on a formalisation in \IHOL{} of a
+subset, \micro{}, that is small enough to be tractable but large enough to
+exhibit the interesting ownership phenomena: a big-step semantics (a clocked
+definitional interpreter with explicit errors), a flow-sensitive ownership and
+type checker, an ASAP destructor-insertion pass, and a machine-checked proof
+that checked programs never fail with an ownership or type error. A formal
+model proves facts about \emph{itself}, so we also validate it against the real
+compiler. We built a translator from Mojo source to the \IHOL{} syntax that
+rejects programs outside the subset with an explanation, and used it to generate
+an \IHOL{} theory that evaluates 76 Mojo programs together with the
+behaviour (output, compile error or run-time error) that Mojo~1.2.0 showed. The
+model agrees with the compiler on all of them, apart from two that expose a
+documented gap; differential testing also exposed two further differences that
+were closed, one by changing the model and one by narrowing the subset.
+\end{abstract}
+
+\section{Introduction}
+
+Mojo~\cite{mojo-manual} aims to give Python programmers the performance of a
+systems language. Unlike Python it has no garbage collector: every value has a
+single owner, and the compiler decides when to destroy it. Unlike Rust, there
+is no separate borrow-checker vocabulary visible in most code; instead,
+functions declare how they receive each argument (\code{read}, \code{mut},
+\code{var}, \code{ref}, \code{out}, \code{deinit}), references carry a static
+\emph{origin}, and values are destroyed right after their last use rather than
+at the end of a scope. These rules decide whether a program compiles, when
+destructors run and therefore what a program prints, yet they are specified
+only informally.
+
+This paper describes a formalisation of that core in \IHOL{}~\cite{isabelle}.
+Our contributions are:
+\begin{enumerate}
+\item a \emph{region model} of the memory-management proposal for Mojo
+  origins~\cite{smith-gist}, with the design alternatives documented
+  (Section~\ref{sec:region});
+\item \micro{}: abstract syntax, an executable big-step semantics, an ownership
+  and type checker, and an ASAP destructor-insertion pass (Section~\ref{sec:formal});
+\item a machine-checked soundness theorem relating the checker to the semantics
+  (Section~\ref{sec:sound});
+\item a differential-testing pipeline from Mojo source to an \IHOL{} theory that is
+  evaluated in batch mode, a suite of 76 programs, and an account of the
+  differences it found (Sections~\ref{sec:dt} and~\ref{sec:findings}).
+\end{enumerate}
+The paper is also a case study in a way of working: the entire development,
+including the proofs, the translator and the test programs, was produced by an
+AI assistant under the direction of the author, with the proof assistant and
+the Mojo compiler acting as the independent checkers (see the
+Acknowledgements).
+
+\section{Why formalise, and what makes Mojo hard}
+
+\paragraph{Benefits.}
+A formal semantics gives (i) \emph{precision}: writing a rule down forces a
+decision about every corner the prose leaves open (for example: what happens to
+a reference into a list when the list is appended to? when exactly is a
+\code{var} parameter that the callee never uses destroyed?); (ii)
+\emph{executability}: the semantics is a function, so example programs can be
+run and their output compared with expectations before any theorem is proved;
+(iii) \emph{guarantees}: soundness is a statement about all programs, not those
+we thought to test; and (iv) a \emph{reference} against which a compiler or an
+alternative language design can be compared. Because the model is written in a
+proof assistant, claims such as ``the elaboration pass only inserts drops'' are
+checked rather than argued.
+
+\paragraph{Challenges specific to Mojo.}
+\begin{itemize}
+\item \emph{No specification.} The documentation describes intent; the compiler
+  defines behaviour, and both are moving (we tested against Mojo~1.2.0; syntax
+  such as \code{def} versus \code{fn} and the spelling of conventions has
+  changed between releases). We treat the compiler as a black box oracle.
+\item \emph{Destruction is observable and implicit.} Destructors (\code{\_\_deinit\_\_})
+  can print, so \emph{when} a value is destroyed is part of a program's meaning.
+  Mojo destroys values ASAP, after their last use, not at scope exit, so the
+  semantics needs a last-use analysis, and what counts as a use includes uses of
+  any reference whose origin contains the variable.
+\item \emph{Many argument conventions.} Each convention changes what the caller
+  may do afterwards (move, mutate, alias) and what the callee may do with the
+  argument; implicit copies are legal for some types and not for others.
+\item \emph{Origins are first-class.} A returned reference has a declared origin
+  that is a set of parameters; checking a call must compute the origin of its
+  result and extend the lifetimes of the variables in it.
+\item \emph{Dynamic containers.} A reference into a list is invalidated by
+  operations that change the list's shape but not by writes to its elements;
+  the ownership tree of a list is not static.
+\item \emph{Flow-sensitive checking.} Initialisation of variables and of
+  individual fields (inside \code{\_\_init\_\_}) depends on control flow, so the
+  checker is an abstract interpreter with joins at branches and a fixed point at
+  loops.
+\end{itemize}
+
+\section{The region model}\label{sec:region}
+
+The starting point is a design sketch by Nick Smith~\cite{smith-gist}, which
+reinterprets an origin as a first-class, typed compile-time value denoting a
+\emph{set of variables} a pointer may target. Our theory
+\code{Mojo\_Region\_Model} gives that sketch a formal reading in four parts:
+(1) a dereference-safety discipline that tracks initialisation of the variables
+in a region; (2) dynamic containers whose item regions are invalidated precisely
+when the container's \emph{shape} is mutated; (3) a replacement for Rust's
+``aliasing XOR mutability'' by a disjointness rule on the region \emph{parameters}
+of a function signature, so that pointers sharing a region parameter may alias
+freely; and (4) mutability as an \emph{effect} declared by a function rather than
+a property of an origin type. Every choice, and the alternatives not taken, is
+discussed in comments in the theory. This model is deliberately abstract: it
+speaks about regions and stores, not about programs. The later development
+instantiates it, taking the ownership tree of the heap as the owner function.
+
+\section{\micro{}: syntax, semantics and checker}\label{sec:formal}
+
+\paragraph{The subset.}
+\micro{} has \code{Int}, \code{Bool}, structs and \code{List[T]}; functions with
+all six conventions; structs with fields, \code{@fieldwise\_init},
+\code{Copyable}, \code{\_\_init\_\_(out self,\ldots)}, \code{\_\_deinit\_\_(deinit
+self)} and methods; and the statements \code{var}, \code{ref} bindings,
+assignment, \code{if}, \code{while}, \code{return}, \code{print} and an explicit
+\code{drop}. Traits, generics, closures, \code{raises}, \code{for}, pointers and
+overloading are left out (Section~\ref{sec:related} discusses extension).
+Places (\code{x}, \code{p.f}, \code{p[i]}) are a separate syntactic category
+from expressions, which lets the semantics decide from the callee's convention
+whether an argument is passed as a location or as a value.
+
+\paragraph{Abstract syntax.}
+The syntax is a set of \IHOL{} datatypes; the listings in this section are
+generated from the theory sources, so they cannot drift from them. Types,
+argument conventions and operators are enumerations:
+\begin{snippet}
+\begin{isabelle}
+\usesnip{ast_ty}\\[0.3em]
+\usesnip{ast_conv}\\[0.3em]
+\usesnip{ast_binop}
+\end{isabelle}
+\end{snippet}
+\code{TStr} is the type of string literals, which may only be printed, and
+\code{TNone} the type of a call that returns nothing. \code{Imm} is Mojo's default
+(read-only) convention. \code{Out} and \code{Deinit} are the conventions of the
+\code{self} parameter of \code{\_\_init\_\_} and \code{\_\_deinit\_\_}. Places and
+expressions are mutually recursive, because an index expression occurs inside a
+place:
+\begin{snippet}
+\begin{isabelle}
+\usesnip{ast_placeexpr}
+\end{isabelle}
+\end{snippet}
+The comment on each constructor shows the Mojo syntax it represents. A \emph{place} names a location (\code{x}, \code{p.f}, \code{p[i]}). \code{EPlace p}
+uses a place as an expression: read as a value it is an implicit copy (legal
+only for trivial values), passed to a \code{mut}, \code{ref} or \code{imm}
+parameter it is a reference. \code{ETake p} is Mojo's transfer \code{p\^{}}, and
+\code{ECopy p} is \code{p.copy()}. A call \code{ECall f args} constructs a struct if
+\code{f} names one and calls a function otherwise, as in Mojo. Statements are:
+\begin{snippet}
+\begin{isabelle}
+\usesnip{ast_stmt}
+\end{isabelle}
+\end{snippet}
+\code{SDrop} never appears in source programs; it is inserted by the ASAP
+elaboration described below. Declarations follow:
+\begin{snippet}
+\begin{isabelle}
+\usesnip{ast_ret}\\[0.3em]
+\usesnip{ast_fundecl}\\[0.3em]
+\usesnip{ast_structdecl}\\[0.3em]
+\usesnip{ast_prog}
+\end{isabelle}
+\end{snippet}
+A reference-returning function declares its result as \code{RRef [a, b] T},
+Mojo's \code{-> ref[a, b] T}: the origin is the union of the listed parameters.
+
+\paragraph{Sugared syntax.}
+Writing programs as raw constructor applications would be unreadable, so the
+theory defines notation that mimics Mojo where Isabelle's syntax allows it and
+uses upper-case keywords elsewhere (in the style of the IMP language). A variable
+used as a place is marked with a section sign, a field access and an index look
+like \code{p.f} and \code{p[i]}, and a place used as an expression is wrapped in
+angle brackets. Calls are written with braces around the argument list, and
+statements are sequenced with a double semicolon. Statements use the keywords
+\code{VAR}, \code{REF}, \code{::=} (assignment), \code{+=}, \code{IF}, \code{WHILE},
+\code{RETURN}, \code{PRINT}, \code{EVAL} (an expression statement) and \code{DROP};
+\code{p += e} is sugar for assigning $p + e$ to $p$, as for Mojo's \code{Int}.
+The sugar is purely notational: it is parsed to, and printed from, the datatypes
+above, so every theorem about the syntax applies to sugared programs unchanged.
+
+\paragraph{An example.}
+All examples of the theory come as a Mojo program and its encoding. The first
+exercises the conventions, a reference return, a transfer and a list. It starts
+with a resource whose destructor prints, so that the order of destruction is
+visible in the output, and three small functions:
+\begin{lstlisting}
+@fieldwise_init
+struct Res:
+    var id: Int
+    def __deinit__(deinit self):
+        print("drop", self.id)
+
+def consume(var r: Res):
+    print("got", r.id)
+
+def bump(mut r: Res, n: Int):
+    r.id += n
+
+def pick(c: Bool, ref a: Res, ref b: Res) -> ref[a, b] Res:
+    if c:
+        return a
+    else:
+        return b
+
+def main():
+    var a = Res(1)
+    var b = Res(2)
+    bump(a, 10)
+    ref r = pick(True, a, b)
+    print(r.id)
+    consume(a^)
+    var l: List[Int] = [1, 2, 3]
+    ref e = l[0]
+    print(e)
+    l.append(4)
+\end{lstlisting}
+Mojo prints \code{11}, \code{drop 2}, \code{got 11}, \code{drop 11}, \code{1}. The
+value \code{b} is destroyed straight after the last use of \code{r}, whose origin
+is $\{a,b\}$, and before \code{consume} runs, while \code{a} is transferred to
+\code{consume} and destroyed inside it. The final \code{append} invalidates
+\code{e}, which is harmless because \code{e} is not used afterwards. The encoding of
+\code{main} in the sugared syntax is:
+\begin{snippet}
+\begin{isabelle}
+\usesnip{ex_ex1_main}
+\end{isabelle}
+\end{snippet}
+Names are strings, \code{N 1} is the integer literal, and \code{TT} is \code{True}.
+Note how the call \code{pick(True, a, b)} gets \code{\isasymlangle\isasymsection a\isasymrangle}
+for its arguments: the callee's \code{ref} convention decides, at run time, that a
+location and not a copy is passed.
+
+\paragraph{Memory.}
+Each variable owns a \emph{root} in a heap; a value is a tree (a struct holds its
+fields, a list its items), and a location is a path from a root. Mojo's ownership
+tree is thereby literal, a move transfers a subtree, and destroying a value
+deinitialises a subtree. Uninitialised and moved-from locations hold a special
+value, and touching one is the error \code{ErrUninit}. Every list carries a
+\emph{generation} number that changes on shape-changing operations; a path
+through a list records the generation it saw, so following a stale path is
+\code{ErrInvalidated}. When a function returns, the roots of its locals are freed
+and a reference into one is \code{ErrDangling}.
+
+\paragraph{Semantics.}
+The semantics is a total, fuel-bounded function in the style of functional
+big-step semantics~\cite{owens-fbs}, with an error monad. Errors are explicit
+results rather than stuck states, so the theorem ``checked programs never reach
+these errors'' is directly expressible, and the semantics can be \emph{run}
+with \code{value} and \code{eval}. Divergence appears as \code{OutOfFuel}. The
+result type is \code{'a res = Ok 'a | Err err | OutOfFuel}, and the errors are
+\code{ErrUninit}, \code{ErrDangling}, \code{ErrInvalidated}, \code{ErrBounds},
+\code{ErrNotCopyable}, \code{ErrFieldInit} and the type and arity errors that the
+checker rules out.
+
+The interpreter is one group of 13 mutually recursive functions. Each takes a
+fuel $n$ as its first argument after the fixed program $P$, and each recursive
+call uses one unit of fuel, which makes termination trivial. Calls make
+expressions depend on statements (a function body is a statement) and statements
+on expressions, hence the single group:
+\begin{center}\small
+\begin{tabular}{@{}ll@{}}
+\toprule
+function & role\\
+\midrule
+\code{eval} & expression $\to$ \emph{owned} value\\
+\code{evals} & list of expressions, left to right\\
+\code{eval\_place} & place $\to$ path; evaluates and bounds-checks indices, and\\
+ & records the list's generation in the path\\
+\code{eval\_ref} & location-denoting expression (a place, or a call returning a\\
+ & reference) $\to$ path\\
+\code{pass\_args} & binds arguments to parameters by convention, giving the\\
+ & callee's initial environment\\
+\code{call\_fun}, \code{call\_meth} & functions, constructors, methods, and the built-in\\
+ & list methods\\
+\code{invoke} & runs a body in a fresh frame and destroys the frame's locals\\
+\code{exec}, \code{exec\_block} & statements, and statements in a new block scope\\
+\code{drop\_path}, \code{drop\_paths} & destroy a value: run \code{\_\_deinit\_\_}, then the\\
+ & remaining fields or list items in order\\
+\code{cleanup} & destroy and free the owned roots of an environment, newest first\\
+\bottomrule
+\end{tabular}
+\end{center}
+A value is a tree and a location a path, so \code{eval} returns an owned value
+while \code{eval\_place} and \code{eval\_ref} return paths into the heap. An
+environment maps each variable either to an owned root (\code{Own r}) or to a
+borrowed path (\code{Bor q}); this is the only difference between a \code{var}
+variable and a \code{mut} or \code{ref} parameter.
+
+\code{pass\_args} is where the argument conventions are implemented. For
+\code{var} (and \code{deinit}) the argument is evaluated to an owned value which
+the callee owns in a fresh root, so \code{x\^{}} transfers and an implicit copy
+is checked by the static rules to be of trivial type. For \code{mut} and
+\code{ref} the argument must denote a location, which is borrowed. For
+\code{imm} a location holding a trivial value is copied, since Mojo passes such
+values by value, other locations are borrowed, and a non-location argument such
+as a literal becomes a temporary owned by the callee. \code{call\_fun} first
+looks the name up among the structs: for a struct with an \code{\_\_init\_\_} it
+allocates a value whose fields are all uninitialised, passes it as \code{out self}
+and afterwards checks that every field is set (\code{ErrFieldInit}); with
+\code{@fieldwise\_init} it builds the value from the arguments; otherwise it
+calls the function. The frame discipline lives in \code{invoke}, whose equation
+is generated from the theory:
+\begin{snippet}
+\begin{isabelle}
+\usesnip{invoke_eqn}
+\end{isabelle}
+\end{snippet}
+Here \isa{m {\isasymbind} f} is bind in the error monad (written with \code{do}
+notation in the theory): run the body, then \code{cleanup} the environment that
+the body ended with, and return its result. \code{exec} threads an environment
+and a heap through a statement and returns whether the statement ended normally
+or with a \code{return}; \code{SVar} allocates a fresh root and extends the
+environment, \code{SAssign} destroys the old value of the place before storing
+the new one, and \code{SDrop p} calls \code{drop\_path}. \code{drop\_path} runs the
+struct's \code{\_\_deinit\_\_} with \code{self} bound to the location and then
+destroys the fields in order; this is the code that gives destruction its
+observable effect, since a destructor can \code{print}. A program is run from
+\code{main}:
+\begin{snippet}
+\begin{isabelle}
+\usesnip{run_eqn}
+\end{isabelle}
+\end{snippet}
+and the result is the list of printed lines (a line is a list of values). Output
+printed before an error is not part of the result, because the error monad does
+not carry the state.
+
+\paragraph{ASAP elaboration.}\label{sec:sound-intro}
+To keep the dynamic semantics free of last-use analysis, a static pass
+\code{elaborate} inserts explicit \code{DROP} statements: after each statement,
+the owned variables it used that are not live afterwards are dropped, branches
+drop variables that are live before the \code{if} but not within the branch, and
+loop bodies are elaborated against the loop's live set. A use of a reference
+counts as a use of every variable in its origin. Destroyed values run their
+\code{\_\_deinit\_\_} and then the destructors of their remaining fields and list
+items, in order. Programs without \code{DROP}s still have a C++-like meaning
+(owned locals are destroyed in reverse order at scope end), which never fires
+after elaboration.
+
+\paragraph{Checker.}
+\code{check\_prog} is a flow-sensitive abstract interpretation of each function
+body, with an abstract state recording (i) which owned variables are definitely
+initialised, (ii) which reference bindings may have been invalidated by a
+shape change of a list they point into, and (iii) inside \code{\_\_init\_\_}, which
+fields of \code{out self} are initialised. It also checks types, that implicit
+copies are only of trivial values, that arguments are exclusive (comparing the
+origins of borrowed arguments, the disjointness rule of the region model),
+that immutable arguments are not mutated, and that a returned reference comes
+from its declared origin. Some restrictions are deliberate simplifications
+that make the checker \emph{stricter} than Mojo: variable names must be
+distinct within a function, static paths stop at the first index (so
+\code{l[i]} and \code{l[j]} always overlap), and analysis is at statement rather
+than sub-expression granularity.
+
+\section{Correctness results}\label{sec:sound}
+
+The central invariant \code{inv} relates a static environment $\Gamma$ and
+abstract state $\sigma$ to a run-time environment and heap: an owned variable
+that is definitely initialised holds a well-typed value; a borrowed parameter
+denotes a well-typed value (except the fields of \code{out self} not yet
+initialised); and a reference binding denotes a path below its base variable
+which is well-typed unless the reference is flagged as invalidated. Soundness
+is proved by a single induction over the fuel, because expressions, statements
+and calls are mutually recursive. The main theorem (here in \IHOL{} syntax,
+slightly abridged) is:
+\begin{lstlisting}[language={},basicstyle=\ttfamily\small]
+theorem run_safe:
+  assumes "wf_prog P"
+  shows   "safe (run fuel P)"
+
+corollary run_no_ownership_error:
+  assumes "wf_prog P" and "run fuel P = Err e"
+  shows   "e = ErrBounds" and "~ ownership_err e"
+\end{lstlisting}
+In words: running a program accepted by the checker, with any amount of fuel,
+either terminates, runs out of fuel, or fails with an out-of-range index; it
+never fails with a use of a moved or uninitialised value, a use of an invalid or
+dangling reference, a copy of a non-copyable value, a return before \code{out
+self} is fully initialised, or any type or arity error. The result is stronger
+than ownership safety because the checker also checks types, and excluding
+uninitialised reads needs well-typed values anyway. Out-of-bounds accesses are
+not excluded, which matches Mojo, which reports them at run time. The same
+statement is proved for every statement and expression (\code{stmt\_sound\_calls},
+\code{expr\_sound\_calls}), and a separate lemma shows that elaboration only
+inserts \code{DROP}s (\code{elab\_only\_inserts\_drops}), so safety carries over to
+the elaborated program that is executed. The proofs occupy about 8\,500 lines of
+\IHOL{}, over 340 lemmas, with the call case alone taking more than half.
+
+\paragraph{What the theorem does not say.}
+It says the \emph{model's} checker is sound for the \emph{model's} semantics. It
+does not say the model resembles Mojo. A model that rejected every program would
+satisfy it. This gap is the motivation for the next section.
+
+\section{Differential testing}\label{sec:dt}
+
+\paragraph{Idea.}
+To validate fidelity, we generate Mojo programs, run them with the real compiler
+to obtain the observed outcome, translate the same programs to \micro{}, and ask
+\IHOL{} to evaluate them. Each test has one of three expected outcomes: the program
+prints a given list of lines; it is rejected at compile time; or it fails at run
+time. The \IHOL{} predicates are, respectively, that the elaborated program run by
+the interpreter produces that output, that \code{check\_prog} reports an error,
+and that the run ends with an error. Output is rendered as text (integers in
+decimal, booleans as \code{True}/\code{False}, arguments space-separated) so
+that it can be compared with the compiler's standard output.
+
+\paragraph{Pipeline.}
+\begin{center}
+\small
+\begin{tabular}{c}
+\code{prog.mojo} $\xrightarrow{\text{translator}}$ \IHOL{} term of type \code{prog}\\[0.3em]
+\code{prog.mojo} $\xrightarrow{\text{mojo build, run}}$ \code{prog.expected.json}\\[0.3em]
+both $\xrightarrow{\text{generator}}$ \code{Micro\_Mojo\_Suite.thy}
+$\xrightarrow{\text{isabelle build}}$ pass/fail
+\end{tabular}
+\end{center}
+The translator is a hand-written tokenizer (with Python-style indentation), a
+recursive-descent parser and a translator with type inference, in about 1\,500
+lines of Python. Its most important property is what it \emph{refuses}. Any
+construct outside the subset is rejected with a message that names the
+feature and says why it is not supported, for example:
+\begin{lstlisting}[style=out]
+suite/rejected/a09_short_circuit.mojo:7:18: unsupported Mojo feature: right
+operand of 'and' with calls or indexing
+    Mojo short-circuits 'and'/'or' but the micro-Mojo semantics evaluates both
+    operands; use nested 'if' statements when the right operand has side
+    effects or can fail
+\end{lstlisting}
+A silent mistranslation would invalidate the whole experiment, so the
+translator is conservative: it also rejects integer literals beyond $10^6$
+(see below), and it is unit-tested on about forty rejection cases. We further
+proved in \IHOL{} that the translator's output for the example programs of the
+syntax theory is \emph{equal} to the hand-written encodings, so the two
+independent encodings cross-check each other.
+
+\paragraph{Recorded results.}
+The driver records, for each test, the compiler's status, standard output and
+diagnostics, and the compiler version, in a JSON file. The generated theory
+therefore needs no Mojo installation to be re-evaluated: it is one \code{lemma}
+per program, proved by \code{eval}, and the whole suite builds as an ordinary
+\IHOL{} session in about two minutes.
+
+\paragraph{The test programs.}
+There are 11 programs from the original syntax theory and 65 new ones designed
+to probe likely weak spots: timing of destruction (14), moves (including in
+branches and loops), implicit and explicit copies, reference invalidation,
+lists, \code{mut}/\code{var} parameters, methods and initialisers, and
+arithmetic and control flow. Mojo accepted and ran 53 of the 76 programs,
+rejected 20 at compile time and aborted 3 at run time (out-of-range index, pop
+of an empty list, negative index). Compile-error tests are deliberately written
+so that only one rule is violated, and we recorded Mojo's diagnostics to check
+that the reason is the intended one (use of an uninitialised value,
+invalidated interior reference, aliasing a mutably borrowed value, and so on).
+We note one limitation: the \IHOL{} test asserts only \emph{that} the checker rejects
+the program, not that it does so for the same reason.
+
+The 11 original examples had expected outputs written by hand \emph{before} the
+compiler was run; Mojo agreed with every one.
+
+\paragraph{An example.}
+Program \code{d13} has a struct whose destructor prints and which contains
+three fields with destructors of their own:
+\begin{lstlisting}
+struct Outer:
+    var a: Inner
+    var b: Inner
+    var c: Inner
+    def __deinit__(deinit self):
+        print("outer start")
+        print("a is", self.a.id)
+        print("outer mid")
+        print("b is", self.b.id)
+        print("outer end")
+\end{lstlisting}
+Mojo prints \code{drop inner 3} \emph{before} \code{outer start} (field \code{c} is
+never used, so it is destroyed on entry), then destroys \code{a} immediately after
+its last use and \code{b} likewise. A scope-based model, or one that runs the body
+and then destroys the fields in order, gets a different trace.
+
+\section{What differential testing found}\label{sec:findings}
+
+Of the 65 new programs, 61 agreed on the first evaluation. The four that did not
+revealed three kinds of gap, plus a tooling issue.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{@{}p{3.2cm}p{5.3cm}p{4.6cm}@{}}
+\toprule
+Difference & Mojo~1.2.0 & Resolution\\
+\midrule
+Unused \code{var} parameter (d09, d14) &
+ destroyed when the callee is entered &
+ \textbf{model fixed:} elaboration drops it on entry; soundness still holds\\[0.4em]
+Fields in \code{\_\_deinit\_\_} (d05, d13) &
+ each field destroyed ASAP; unused ones before the body &
+ \textbf{documented divergence;} test asserts the mismatch\\[0.4em]
+\code{and}/\code{or} (a09) &
+ short-circuit &
+ translator \textbf{rejects} impure right operands\\[0.4em]
+Variable reuse in disjoint scopes (a08) &
+ allowed &
+ translator \textbf{rejects}; checker requires unique names\\
+\bottomrule
+\end{tabular}
+\caption{Differences between the model and Mojo~1.2.0 found by the suite.}
+\label{tab:diffs}
+\end{table}
+
+\paragraph{Unused \code{var} parameters.}
+The model dropped an owned parameter only after its last use, so one that was
+never used lived until the callee returned. Mojo destroys it on entry. The fix
+was a small change to the elaboration pass: the body starts with drops of the
+owned parameters that are not live on entry. Because the soundness proofs are
+about the checker and interpreter, not the particular elaboration, the proofs
+were unaffected, which we confirmed by rebuilding. This is the kind of change
+the proof structure is meant to make cheap.
+
+\paragraph{Field-wise destruction in \code{\_\_deinit\_\_}.}
+In the model, \code{\_\_deinit\_\_} runs as a body over a borrowed \code{self}
+and afterwards the remaining fields are destroyed in order. Mojo instead treats
+the fields of \code{deinit self} as separately owned, and applies the ASAP rule
+to each. Matching this would require tracking initialisation per field in the
+checker's abstract state, a drop rule for fields of \code{deinit self}, an
+elaboration over field places rather than variables, and changes to the
+invariant used throughout the soundness proofs. We judged the cost not worth it
+for a divergence that is visible only when a struct with printing field
+destructors also has a printing \code{\_\_deinit\_\_}, and recorded it instead.
+Each known divergence is a file entry with a reason, and the generated theory
+asserts \emph{the negation} of the test for it. The build stays green today, and
+becomes red as soon as someone fixes the semantics, at which point the entry is
+deleted and the test becomes an ordinary one. This turns a known gap into a
+regression test for the future fix.
+
+\paragraph{Short-circuit \code{and}/\code{or}.}
+The interpreter evaluates both operands. Making it short-circuit would change the
+evaluation function and the induction in every soundness case that involves
+boolean operators. Since the difference is observable only when the right-hand
+operand has effects (a call that prints, or an indexing that may fail), we
+narrowed the subset: the translator rejects such programs and explains why. The
+rejected example is kept in a directory of its own, and a unit test checks that it
+stays rejected, so that the restriction cannot silently disappear.
+
+\paragraph{Variable names.}
+Mojo allows the same \code{var} name to be declared in disjoint scopes. The
+model's checker requires unique names in a function (this simplifies the
+soundness invariant, since the environment can be treated as a finite map from
+names to kinds). Again the translator rejects such programs.
+
+\paragraph{A tooling observation.}
+Evaluating integer arithmetic around $10^9$ with \code{eval} hung on the
+(32-bit-pointer) Poly/ML platform we used, even for plain natural-number
+arithmetic. The translator therefore limits literals to $10^6$ in absolute value.
+We mention this because a differential test harness has its own trusted base,
+and its failures can look like failures of the semantics.
+
+\paragraph{Agreement on rejection.}
+All 20 compile-error programs were rejected by the checker, and all three
+run-time errors were reproduced as out-of-range accesses. In particular the
+checker rejected partial moves, the use of references after a shape-changing
+mutation, conflicting borrows of the same origin, and \code{\_\_init\_\_} that
+does not initialise every field, each as Mojo did. Since the model's checker is
+intentionally stricter than Mojo in places, the converse direction (programs
+Mojo accepts but the model rejects) is the more informative one: the cases we
+found there are the restrictions of Section~\ref{sec:formal}, which are surfaced
+as translator rejections where they matter.
+
+\section{Threats to validity}
+
+\begin{itemize}
+\item The suite was designed by the same agent that wrote the semantics, so it
+  may share blind spots. The first-pass agreement on the hand-predicted
+  examples is encouraging but not independent evidence. Random program
+  generation \`a la Csmith~\cite{csmith} would complement it.
+\item Tests assert the \emph{status} of a compile error, not its cause.
+\item The suite targets one compiler version; Mojo changes quickly.
+\item The theorem is relative to the model; each translator rejection and each
+  recorded divergence is part of the model's stated scope and should be read
+  alongside it.
+\item Values are small (decimal integers below $10^6$); arithmetic overflow and
+  floating point are not modelled.
+\end{itemize}
+
+\section{Related work}\label{sec:related}
+
+\paragraph{Rust.} The closest bodies of work formalise Rust's ownership.
+RustBelt~\cite{rustbelt} proves semantic soundness of a core calculus and its
+unsafe libraries in Iris; Oxide~\cite{oxide} gives a syntactic type system for
+borrowing based on ``provenances'' (regions of loans); Featherweight
+Rust~\cite{pearce} models lifetimes and borrowing in a small calculus; Stacked
+Borrows~\cite{stackedborrows} and Tree Borrows~\cite{treeborrows} define
+aliasing models for unsafe code and are validated with the Miri interpreter.
+Non-lexical lifetimes~\cite{rfc2094} are the analogue of our flow-sensitive
+checker. Our work differs in the object language, which has argument
+conventions, ASAP destruction and origins as sets of variables, and in method: a
+single proof assistant development containing the semantics, the checker and a
+compiler-validated test suite. Gao and Parreaux's InvalML~\cite{invalml}, raised in
+the Mojo design discussion, is a closer model of invalidation.
+
+\paragraph{Regions.} Tofte and Talpin's region calculus~\cite{tofte} and Cyclone's
+regions~\cite{cyclone} are the origin of the idea that a pointer's type names
+the memory it may refer to. Mojo's origins differ in that they are sets of
+\emph{variables} and are first-class values.
+
+\paragraph{Ownership in other languages.} Swift's \code{borrowing} and
+\code{consuming} conventions~\cite{se0377} are similar to Mojo's argument
+conventions; C++ destructors give scope-based rather than ASAP destruction.
+
+\paragraph{Mechanised language semantics and testing.} CompCert~\cite{compcert},
+the WebAssembly specification~\cite{watt}, JSCert~\cite{jscert} and the executable
+C semantics~\cite{ellison} demonstrate the value of executable formal
+semantics tested against implementations. Differential testing in general goes
+back to McKeeman~\cite{mckeeman} and was made famous for compilers by
+Csmith~\cite{csmith}. Our setting differs in that the oracle is a compiler for
+a language whose semantics is not otherwise specified, and the object under test
+is the formal semantics itself. The use of a clocked definitional interpreter
+follows Owens et al.~\cite{owens-fbs}.
+
+\section{Conclusion and future work}
+
+We have shown that a core of Mojo's ownership discipline, including ASAP
+destruction, argument conventions, origins and invalidation of references into
+dynamic containers, can be given an executable semantics and a checker whose
+soundness is proved in \IHOL{}, and that a pipeline from Mojo source to an
+\IHOL{} theory lets the compiler itself be used as an oracle in batch mode. The
+exercise produced concrete findings: a model bug fixed (unused \code{var}
+parameters), a gap documented and kept as a regression test (field-wise
+\code{\_\_deinit\_\_}), and two restrictions of the subset made explicit in the
+translator. We found the combination valuable: the proof tells us that
+the checker implies the absence of ownership errors, and the testing tells us
+how far the model is from Mojo.
+
+Future work: (i) field-wise destruction in \code{\_\_deinit\_\_}; (ii) short-circuit
+operators and block scoping with shadowing; (iii) pointers with origins and
+\code{for} loops over lists; (iv) traits, generics and \code{raises}; (v) random
+generation of programs, including mutation of existing tests, and tracking the
+causes of compile errors; (vi) re-running the suite on newer Mojo versions to
+track the language's evolution.
+
+\section*{Acknowledgements}
+
+The author set the goals, took the design decisions that were put to them
+(including the choice of a clocked functional big-step semantics and of an
+explicit \code{drop} elaboration), directed each phase (region model,
+subset proposal, syntax, semantics, checker, soundness, differential testing,
+larger suite), asked for the compiler to be used once it was found to be
+installed through \code{uv}, and decided what to commit and what to leave as a
+documented divergence.
+
+The development itself was carried out by Claude (Anthropic), working through
+Claude Code, with the Isabelle PIDE MCP server for interactive proof
+development; the final phases were done with Claude Sonnet~5.5. Claude wrote the
+region theory and its commentary, the \micro{} syntax, semantics, checker and
+elaboration, the soundness proofs, the Python translator and test driver, the
+unit tests, the 76 Mojo test programs, the build configuration, the READMEs, the
+analysis of each test disagreement, the small fix to the elaboration pass, and a
+first draft of this paper. In the testing phase, Claude first wrote the expected output
+for each example by hand from the semantics and only then ran the compiler, which
+agreed. The validity of the formal results rests on the Isabelle kernel and
+of the empirical results on the Mojo compiler, both independent of the
+assistant that produced the artefacts; the statements of the definitions
+and theorems, the choice of subset and this paper's claims should still be
+read critically by a human, and the bibliography below has been written from
+memory of the literature and needs checking against the sources.
+
+\begin{thebibliography}{99}\small
+\bibitem{mojo-manual} Modular. \emph{Mojo Manual: Ownership and value lifecycle}.
+  \url{https://docs.modular.com/mojo/manual/}. Accessed 2026.
+\bibitem{smith-gist} N.~Smith. \emph{An alternative model for ``lifetimes'' in Mojo}.
+  GitHub gist and discussion.
+  \url{https://gist.github.com/nmsmith/cdaa94aa74e8e0611221e65db8e41f7b}.
+\bibitem{isabelle} T.~Nipkow, L.~C. Paulson, M.~Wenzel. \emph{Isabelle/HOL: A Proof
+  Assistant for Higher-Order Logic}. LNCS 2283, Springer, 2002.
+\bibitem{owens-fbs} S.~Owens, M.~O. Myreen, R.~Kumar, Y.~K. Tan. Functional big-step
+  semantics. ESOP 2016.
+\bibitem{rustbelt} R.~Jung, J.-H. Jourdan, R.~Krebbers, D.~Dreyer. RustBelt: Securing
+  the foundations of the Rust programming language. POPL 2018.
+\bibitem{oxide} A.~Weiss, D.~Patterson, N.~D. Matsakis, A.~Ahmed. Oxide: The essence of
+  Rust. arXiv:1903.00982, 2019.
+\bibitem{pearce} D.~J. Pearce. A lightweight formalism for reference lifetimes and
+  borrowing in Rust. ACM TOPLAS 43(1), 2021.
+\bibitem{stackedborrows} R.~Jung, H.-H. Dang, J.~Kang, D.~Dreyer. Stacked Borrows: An
+  aliasing model for Rust. POPL 2020.
+\bibitem{treeborrows} N.~Villani, J.~Hostert, D.~Dreyer, R.~Jung. Tree Borrows. PLDI 2025.
+\bibitem{rfc2094} N.~D. Matsakis. Rust RFC 2094: Non-lexical lifetimes. 2017.
+\bibitem{invalml} Gao and Parreaux. InvalML. OOPSLA 2025. (Reference as cited in the
+  design discussion~\cite{smith-gist}; details to be verified.)
+\bibitem{tofte} M.~Tofte, J.-P. Talpin. Region-based memory management. Information and
+  Computation 132(2), 1997.
+\bibitem{cyclone} D.~Grossman, G.~Morrisett, T.~Jim, M.~Hicks, Y.~Wang, J.~Cheney.
+  Region-based memory management in Cyclone. PLDI 2002.
+\bibitem{se0377} Swift Evolution SE-0377: \code{borrowing} and \code{consuming}
+  parameter ownership modifiers.
+\bibitem{compcert} X.~Leroy. Formal verification of a realistic compiler. CACM 52(7), 2009.
+\bibitem{watt} C.~Watt. Mechanising and verifying the WebAssembly specification. CPP 2018.
+\bibitem{jscert} M.~Bodin, A.~Charguéraud, D.~Filaretti, P.~Gardner, S.~Maffeis,
+  D.~Naudziuniene, A.~Schmitt, G.~Smith. A trusted mechanised JavaScript
+  specification. POPL 2014.
+\bibitem{ellison} C.~Ellison, G.~Rosu. An executable formal semantics of C with
+  applications. POPL 2012.
+\bibitem{mckeeman} W.~M. McKeeman. Differential testing for software. Digital Technical
+  Journal 10(1), 1998.
+\bibitem{csmith} X.~Yang, Y.~Chen, E.~Eide, J.~Regehr. Finding and understanding bugs in
+  C compilers. PLDI 2011.
+\end{thebibliography}
+\end{document}

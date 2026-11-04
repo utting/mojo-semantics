@@ -813,7 +813,7 @@ text \<open>
   indeed @{text copy_step} can get stuck when they do.
 
   \<^bold>\<open>Alternative not taken.\<close> The gist itself discusses an alternative
-  design (its "alternative #1"): instead of imposing disjointness between
+  design (its first alternative): instead of imposing disjointness between
   mutated and other region parameters, one could allow region parameters
   to overlap freely and instead reject the specific \<^emph>\<open>copy expression\<close>
   @{text "name[] = value[]"} with the error "cannot copy value[]; it
