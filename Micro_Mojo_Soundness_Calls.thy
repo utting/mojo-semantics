@@ -57,6 +57,8 @@ text \<open>
   termination (handled here by fuel).
 \<close>
 
+
+
 section \<open>Well-formed programs\<close>
 
 definition wf_prog :: "prog \<Rightarrow> bool" where
@@ -143,6 +145,8 @@ qed
 
 lemma wf_prog_fields: "wf_prog P \<Longrightarrow> wf_fields P"
   using wf_struct_facts(1) by (auto simp: wf_fields_def)
+
+
 
 section \<open>Changes below a set of locations\<close>
 
@@ -580,6 +584,8 @@ definition envroots :: "env \<Rightarrow> nat set" where
 lemma envroots_I: "map_of env x = Some b \<Longrightarrow> fst (bpath b) \<in> envroots env"
   by (auto simp: envroots_def)
 
+
+
 section \<open>Changes preserve the invariant\<close>
 
 text \<open>
@@ -978,6 +984,8 @@ proof -
   qed
 qed
 
+
+
 section \<open>Frames of evaluation\<close>
 
 text \<open>
@@ -1152,6 +1160,8 @@ next
   from below_disjoint[OF _ _ this, of q q'] z(5) z'(5) show ?thesis by simp
 qed
 
+
+
 section \<open>Static facts about expressions with calls\<close>
 
 lemma ale_invalidate: "ale (invalidate_place \<Gamma> \<sigma> p T) \<sigma>"
@@ -1250,6 +1260,8 @@ qed
 
 lemma overlap_sym: "overlap \<Gamma> p p' = overlap \<Gamma> p' p"
   by (auto simp: overlap_def)
+
+
 
 section \<open>The statements of the induction\<close>
 
@@ -1459,6 +1471,8 @@ definition sound_all_at :: "prog \<Rightarrow> nat \<Rightarrow> bool" where
 lemma sound_all_at_0: "sound_all_at P 0"
   by (simp add: sound_all_at_def SP_def SE_def SES_def SR_def SA_def SCF_def SCM_def SI_def SS_def SB_def
                 SD_def SDS_def SC_def)
+
+
 
 section \<open>Heap facts for destruction\<close>
 
@@ -1921,6 +1935,8 @@ proof (intro allI impI)
   qed
 qed
 
+
+
 section \<open>Places and expressions\<close>
 
 lemma spec_bind_pair:
@@ -2302,6 +2318,8 @@ proof (intro allI impI)
       using ns c by (auto simp: cres_def)
   qed
 qed
+
+
 
 section \<open>Arguments\<close>
 
@@ -2721,6 +2739,8 @@ proof (intro allI impI)
     qed
   qed
 qed
+
+
 
 section \<open>Entering and leaving a callee\<close>
 
@@ -3226,6 +3246,8 @@ proof -
     with ag p(1) show "rskel (get st' p) = rskel (get st p)" by (rule hagreeD2)
   qed
 qed
+
+
 
 section \<open>Calls\<close>
 
@@ -4183,6 +4205,8 @@ proof (intro allI impI)
   qed
 qed
 
+
+
 section \<open>Function bodies\<close>
 
 lemma ctx_eta: "C = \<lparr>c_prog = c_prog C, c_ret = c_ret C, c_fields = c_fields C\<rparr>"
@@ -4425,6 +4449,8 @@ proof (intro allI impI)
     qed
   qed
 qed
+
+
 
 section \<open>Statements\<close>
 
@@ -5340,6 +5366,8 @@ proof (intro allI impI)
     case (SDrop p) show ?thesis unfolding SDrop by (rule SS_drop[OF assms(7) inv], rule chk[unfolded SDrop])
   qed
 qed
+
+
 
 section \<open>Soundness\<close>
 

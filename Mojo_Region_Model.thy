@@ -78,6 +78,8 @@ text \<open>
   "Limitations, open questions, and alternative formal approaches".
 \<close>
 
+
+
 section \<open>Part 1: Regions as sets of variables, and the ownership tree\<close>
 
 text \<open>
@@ -511,6 +513,8 @@ proof
     unfolding cyc.wf_region_def by auto
 qed
 
+
+
 section \<open>Part 2: Dereference safety via initialization tracking\<close>
 
 text \<open>
@@ -595,6 +599,8 @@ lemma example_x_y_dangling_and_restored:
     and "\<not> safe_to_deref {ex_x, ex_y} s1"
     and "safe_to_deref {ex_x, ex_y} s2"
   unfolding s0_def s1_def s2_def safe_to_deref_def by auto
+
+
 
 section \<open>Part 3: Dynamic containers and pointer invalidation\<close>
 
@@ -750,6 +756,8 @@ lemma example_item_ops_preserve_pointer:
 lemma example_pop_invalidates_even_after_many_item_ops:
   "\<not> valid_ptr g [Item, Item, Shape, Item]"
   by (simp add: valid_ptr_iff)
+
+
 
 section \<open>Part 4: Aliasing-xor-mutability for region parameters\<close>
 
@@ -918,6 +926,8 @@ qed
 
 end
 
+
+
 section \<open>Part 5: Mutation as an effect, not a type\<close>
 
 text \<open>
@@ -1028,6 +1038,8 @@ text \<open>
   gist's design exploits when it allows @{text Read} to be added freely
   to a trait conformance but forbids adding @{text Mut}.
 \<close>
+
+
 
 section \<open>Limitations, open questions, and alternative formal approaches\<close>
 

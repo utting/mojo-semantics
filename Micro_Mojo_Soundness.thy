@@ -68,6 +68,8 @@ text \<open>
   the natural choice.
 \<close>
 
+
+
 section \<open>Results that do not go wrong\<close>
 
 definition safe :: "'a res \<Rightarrow> bool" where
@@ -102,6 +104,8 @@ lemma spec_Ok_D: "spec r Q \<Longrightarrow> r = Ok a \<Longrightarrow> Q a"
 lemma bind_res_Ok_iff: "bind_res m f = Ok b \<longleftrightarrow> (\<exists>a. m = Ok a \<and> f a = Ok b)"
   by (cases m) auto
 
+
+
 section \<open>Well-typed values\<close>
 
 text \<open>
@@ -133,6 +137,8 @@ lemma vt_not_undef: "vt P T v \<Longrightarrow> v \<noteq> VUndef"
 
 lemma vt_trivial: "vt P T v \<Longrightarrow> trivial_ty T \<Longrightarrow> trivial v"
   by (cases v; cases T) auto
+
+
 
 section \<open>Paths into the heap\<close>
 
@@ -168,6 +174,8 @@ proof -
   with fs U have "vt P U u" by auto
   with u v show ?thesis by simp
 qed
+
+
 
 section \<open>The invariant\<close>
 
@@ -377,6 +385,8 @@ lemma sty_append:
   "sty P T (ss @ ts) = (case sty P T ss of Some U \<Rightarrow> sty P U ts | None \<Rightarrow> None)"
   by (induction P T ss rule: sty.induct) (auto split: ck.splits option.splits)
 
+
+
 section \<open>Abstract states along an expression\<close>
 
 lemma bind_ck_Good_iff [simp]: "bind_ck m f = Good b \<longleftrightarrow> (\<exists>a. m = Good a \<and> f a = Good b)"
@@ -476,6 +486,8 @@ proof (rule ccontr)
     then show False by (simp add: overlaps_same_root)
   qed
 qed
+
+
 
 section \<open>Expressions without calls\<close>
 
@@ -1141,6 +1153,8 @@ corollary expr_no_ownership_error:
     and "eval P n env st e = Err err"
   shows "\<not> ownership_err err"
   using expr_sound(1)[OF assms(1-5), of n] assms(6) by (simp add: safe_def ownership_err_def)
+
+
 
 section \<open>Next steps\<close>
 

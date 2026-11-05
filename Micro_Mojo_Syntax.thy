@@ -63,6 +63,7 @@ text \<open>
   next extension is @{text "Pointer[T, origin]"}.
 \<close>
 
+
 section \<open>Abstract syntax\<close>
 
 type_synonym vname = string   \<comment> \<open>variables and parameters\<close>
@@ -182,6 +183,8 @@ text_raw \<open>\snip{ast_prog}{1}{2}{%\<close>
 datatype prog = Prog (p_structs: "structdecl list") (p_funs: "fundecl list")
 text_raw \<open>}%endsnip\<close>
 
+
+
 section \<open>Mojo-like notation\<close>
 
 text \<open>
@@ -272,6 +275,8 @@ text \<open>
 abbreviation SELF :: "name \<Rightarrow> conv \<times> vname \<times> ty" where "SELF S \<equiv> (Imm, ''self'', TStruct S)"
 abbreviation MUTSELF :: "name \<Rightarrow> conv \<times> vname \<times> ty" where "MUTSELF S \<equiv> (Mut, ''self'', TStruct S)"
 abbreviation OUTSELF :: "name \<Rightarrow> conv \<times> vname \<times> ty" where "OUTSELF S \<equiv> (Out, ''self'', TStruct S)"
+
+
 
 section \<open>Example programs\<close>
 
