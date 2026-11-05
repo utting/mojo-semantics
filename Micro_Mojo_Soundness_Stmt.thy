@@ -21,6 +21,8 @@ text \<open>
   the fuel.
 \<close>
 
+
+
 section \<open>Values along paths\<close>
 
 lemma walk_typed:
@@ -293,6 +295,8 @@ qed
 lemma below_refl [simp]: "below a a"
   by (auto simp: below_def)
 
+
+
 section \<open>Writing preserves the invariant\<close>
 
 lemma out_val_fields_eq: "a_fields \<sigma>' = a_fields \<sigma> \<Longrightarrow> out_val P C \<sigma>' T v = out_val P C \<sigma> T v"
@@ -481,6 +485,8 @@ proof -
   then show ?thesis by (simp add: \<sigma>'_def)
 qed
 
+
+
 section \<open>Other changes of state\<close>
 
 definition heap_fresh :: "state \<Rightarrow> bool" where
@@ -578,6 +584,8 @@ proof -
   with assms(1) show ?thesis by (fastforce simp: inv_def)
 qed
 
+
+
 section \<open>Destruction\<close>
 
 text \<open>
@@ -672,6 +680,8 @@ next
     qed
   qed
 qed
+
+
 
 section \<open>Declarations and the end of a block\<close>
 
@@ -1054,6 +1064,8 @@ proof -
   qed
 qed
 
+
+
 section \<open>Static facts about statements\<close>
 
 lemma ex_cons_append:
@@ -1139,6 +1151,8 @@ lemma chk_loop_stable:
    join_opt (Some \<sigma>f) ob = Some \<sigma>f \<Longrightarrow> chk_loop (Suc k) C \<Gamma> \<sigma>f c b = Good (Some \<sigma>c)"
   by simp
 
+
+
 section \<open>Initializing expressions and assignments at the heap level\<close>
 
 lemma ty_init_cases:
@@ -1194,6 +1208,8 @@ proof -
       using d by (auto simp: drop_post_def)
   qed (use d in \<open>auto simp: drop_post_def\<close>)
 qed
+
+
 
 section \<open>Writing into \<open>out self\<close>\<close>
 
@@ -1282,6 +1298,8 @@ qed
 lemma out_val_fields_insert:
   "out_val P C \<sigma> T u \<Longrightarrow> f \<in> a_fields \<sigma> \<Longrightarrow> out_val P C (\<sigma>\<lparr>a_fields := insert f (a_fields \<sigma>)\<rparr>) T u"
   by (simp add: insert_absorb)
+
+
 
 section \<open>Assignment\<close>
 
@@ -1498,6 +1516,8 @@ proof -
     qed
   qed
 qed
+
+
 
 section \<open>Statements\<close>
 
@@ -2003,6 +2023,8 @@ proof -
     and "exec P n (c_ret C) env st s = Ok r \<Longrightarrow> stmt_post P C \<Gamma>' o\<sigma> env r"
     by (auto simp: spec_def)
 qed
+
+
 
 section \<open>Next steps\<close>
 

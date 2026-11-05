@@ -67,6 +67,8 @@ text \<open>
   For now we check it on all the examples.
 \<close>
 
+
+
 section \<open>A checking monad\<close>
 
 datatype 'a ck = Good 'a | Bad string
@@ -83,6 +85,8 @@ adhoc_overloading Monad_Syntax.bind \<rightleftharpoons> bind_ck
 
 definition check :: "bool \<Rightarrow> string \<Rightarrow> unit ck" where
   "check b msg = (if b then Good () else Bad msg)"
+
+
 
 section \<open>Typing\<close>
 
@@ -229,6 +233,8 @@ definition ty_init :: "prog \<Rightarrow> senv \<Rightarrow> ty \<Rightarrow> ex
   "ty_init P \<Gamma> T e = (case e of
      EList [] \<Rightarrow> (case T of TList _ \<Rightarrow> Good () | _ \<Rightarrow> Bad ''type mismatch'')
    | _ \<Rightarrow> do { U \<leftarrow> etype P \<Gamma> e; check (U = T) ''type mismatch'' })"
+
+
 
 section \<open>The ownership checker\<close>
 
@@ -827,6 +833,8 @@ definition check_prog :: "prog \<Rightarrow> string list" where
         | Some fd \<Rightarrow> if fd_params fd = [] then [] else [''main takes no parameters''])
      @ concat (map (chk_struct P) (p_structs P)) @ concat (map (chk_fun P '''') (p_funs P))"
 
+
+
 section \<open>ASAP elaboration\<close>
 
 subsection \<open>Variables, moves and origins\<close>
@@ -1080,6 +1088,8 @@ lemma strip_drops: "concat (map strip (drops Os D)) = []"
 
 theorem elab_only_inserts_drops: "concat (map strip (elab M Os s L)) = strip s"
   by (induct M Os s L rule: elab.induct) (simp_all add: strip_seq strip_drops Let_def)
+
+
 
 section \<open>Checking and elaborating the examples\<close>
 
