@@ -32,8 +32,7 @@
 \newcommand{\IHOL}{Isabelle/HOL}
 \newcommand{\code}[1]{\texttt{#1}}
 
-\title{A Machine-Checked Semantics for the Ownership Rules of Mojo,\\
-       Validated by Differential Testing Against the Compiler}
+\title{A Formal Semantics of Mojo 1.2 and Its Ownership Checker}
 \author{Mark Utting\\ \small (with the assistance of Claude; see Acknowledgements)}
 \date{\today\\[0.3em]\small Draft}
 
@@ -166,7 +165,7 @@ Places (\code{x}, \code{p.f}, \code{p[i]}) are a separate syntactic category
 from expressions, which lets the semantics decide from the callee's convention
 whether an argument is passed as a location or as a value.
 
-\paragraph{Abstract syntax.}
+\subsection{Abstract Syntax}
 The syntax is a set of \IHOL{} datatypes; the listings in this section are
 generated from the theory sources, so they cannot drift from them. Types,
 argument conventions and operators are enumerations:
@@ -212,7 +211,7 @@ elaboration described below. Declarations follow:
 A reference-returning function declares its result as \code{RRef [a, b] T},
 Mojo's \code{-> ref[a, b] T}: the origin is the union of the listed parameters.
 
-\paragraph{Sugared syntax.}
+\subsection{Sugared Syntax}
 Writing programs as raw constructor applications would be unreadable, so the
 theory defines notation that mimics Mojo where Isabelle's syntax allows it and
 uses upper-case keywords elsewhere (in the style of the IMP language). A variable
@@ -227,11 +226,14 @@ The sugar is purely notational: it is parsed to, and printed from, the datatypes
 above, so every theorem about the syntax applies to sugared programs unchanged.
 
 \paragraph{An example.}
-All examples of the theory come as a Mojo program and its encoding. The first
-exercises the conventions, a reference return, a transfer and a list. It starts
-with a resource whose destructor prints, so that the order of destruction is
-visible in the output, and three small functions:
-\begin{lstlisting}
+All examples of the theory come as a Mojo program and its encoding. The first,
+shown in Figure~\ref{fig:ex1}, exercises the conventions, a reference return, a
+transfer and a list. It uses a resource whose destructor prints, so that the
+order of destruction is visible in the output, and three small functions.
+\begin{figure}[t]
+\centering
+\begin{minipage}[t]{0.5\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize]
 @fieldwise_init
 struct Res:
     var id: Int
@@ -244,12 +246,16 @@ def consume(var r: Res):
 def bump(mut r: Res, n: Int):
     r.id += n
 
-def pick(c: Bool, ref a: Res, ref b: Res) -> ref[a, b] Res:
+def pick(c: Bool, ref a: Res,
+         ref b: Res) -> ref[a, b] Res:
     if c:
         return a
     else:
         return b
-
+\end{lstlisting}
+\end{minipage}%
+\begin{minipage}[t]{0.47\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize]
 def main():
     var a = Res(1)
     var b = Res(2)
@@ -261,7 +267,19 @@ def main():
     ref e = l[0]
     print(e)
     l.append(4)
+
+# Output:
+#   11
+#   drop 2
+#   got 11
+#   drop 11
+#   1
 \end{lstlisting}
+\end{minipage}
+\caption{The first example: shared declarations (left) and \code{main} (right), with the
+output that Mojo~1.2 produces.}
+\label{fig:ex1}
+\end{figure}
 Mojo prints \code{11}, \code{drop 2}, \code{got 11}, \code{drop 11}, \code{1}. The
 value \code{b} is destroyed straight after the last use of \code{r}, whose origin
 is $\{a,b\}$, and before \code{consume} runs, while \code{a} is transferred to
@@ -278,7 +296,7 @@ Note how the call \code{pick(True, a, b)} gets \code{\isasymlangle\isasymsection
 for its arguments: the callee's \code{ref} convention decides, at run time, that a
 location and not a copy is passed.
 
-\paragraph{Memory.}
+\subsection{Memory Model}
 Each variable owns a \emph{root} in a heap; a value is a tree (a struct holds its
 fields, a list its items), and a location is a path from a root. Mojo's ownership
 tree is thereby literal, a move transfers a subtree, and destroying a value
@@ -289,7 +307,7 @@ through a list records the generation it saw, so following a stale path is
 \code{ErrInvalidated}. When a function returns, the roots of its locals are freed
 and a reference into one is \code{ErrDangling}.
 
-\paragraph{Semantics.}
+\subsection{Semantics}
 The semantics is a total, fuel-bounded function in the style of functional
 big-step semantics~\cite{owens-fbs}, with an error monad. Errors are explicit
 results rather than stuck states, so the theorem ``checked programs never reach
@@ -373,7 +391,7 @@ and the result is the list of printed lines (a line is a list of values). Output
 printed before an error is not part of the result, because the error monad does
 not carry the state.
 
-\paragraph{ASAP elaboration.}\label{sec:sound-intro}
+\subsection{ASAP Elaboration}\label{sec:sound-intro}
 To keep the dynamic semantics free of last-use analysis, a static pass
 \code{elaborate} inserts explicit \code{DROP} statements: after each statement,
 the owned variables it used that are not live afterwards are dropped, branches
@@ -385,7 +403,7 @@ items, in order. Programs without \code{DROP}s still have a C++-like meaning
 (owned locals are destroyed in reverse order at scope end), which never fires
 after elaboration.
 
-\paragraph{Checker.}
+\subsection{Checker}
 \code{check\_prog} is a flow-sensitive abstract interpretation of each function
 body, with an abstract state recording (i) which owned variables are definitely
 initialised, (ii) which reference bindings may have been invalidated by a
