@@ -199,7 +199,7 @@ parameter it is a reference. \code{ETake p} is Mojo's transfer \code{p\^{}}, and
 \end{isabelle}
 \end{snippet}
 \code{SDrop} never appears in source programs; it is inserted by the ASAP
-elaboration described below. Declarations follow:
+elaboration described below. Finally we define function declarations and structure declarations:
 \begin{snippet}
 \begin{isabelle}
 \usesnip{ast_ret}\\[0.3em]
@@ -843,7 +843,7 @@ Non-lexical lifetimes~\cite{rfc2094} are the analogue of our flow-sensitive
 checker. Our work differs in the object language, which has argument
 conventions, ASAP destruction and origins as sets of variables, and in method: a
 single proof assistant development containing the semantics, the checker and a
-compiler-validated test suite. Gao and Parreaux's InvalML~\cite{invalml}, raised in
+compiler-validated test suite. Gao and Parreaux's type-and-effect system for invalidation safety, nicknamed InvalML~\cite{invalml}, which was raised in
 the Mojo design discussion, is a closer model of invalidation.
 
 \paragraph{Regions.} Tofte and Talpin's region calculus~\cite{tofte} and Cyclone's
@@ -909,47 +909,10 @@ agreed. The validity of the formal results rests on the Isabelle kernel and
 of the empirical results on the Mojo compiler, both independent of the
 assistant that produced the artefacts; the statements of the definitions
 and theorems, the choice of subset and this paper's claims should still be
-read critically by a human, and the bibliography below has been written from
-memory of the literature and needs checking against the sources.
+read critically by a human. The BibTeX entries were downloaded by Claude from
+Crossref and arXiv by DOI, except for a few hand-written entries (web documents,
+the Isabelle/HOL book and McKeeman's article), which should be checked.
 
-\begin{thebibliography}{99}\small
-\bibitem{mojo-manual} Modular. \emph{Mojo Manual: Ownership and value lifecycle}.
-  \url{https://docs.modular.com/mojo/manual/}. Accessed 2026.
-\bibitem{smith-gist} N.~Smith. \emph{An alternative model for ``lifetimes'' in Mojo}.
-  GitHub gist and discussion.
-  \url{https://gist.github.com/nmsmith/cdaa94aa74e8e0611221e65db8e41f7b}.
-\bibitem{isabelle} T.~Nipkow, L.~C. Paulson, M.~Wenzel. \emph{Isabelle/HOL: A Proof
-  Assistant for Higher-Order Logic}. LNCS 2283, Springer, 2002.
-\bibitem{owens-fbs} S.~Owens, M.~O. Myreen, R.~Kumar, Y.~K. Tan. Functional big-step
-  semantics. ESOP 2016.
-\bibitem{rustbelt} R.~Jung, J.-H. Jourdan, R.~Krebbers, D.~Dreyer. RustBelt: Securing
-  the foundations of the Rust programming language. POPL 2018.
-\bibitem{oxide} A.~Weiss, D.~Patterson, N.~D. Matsakis, A.~Ahmed. Oxide: The essence of
-  Rust. arXiv:1903.00982, 2019.
-\bibitem{pearce} D.~J. Pearce. A lightweight formalism for reference lifetimes and
-  borrowing in Rust. ACM TOPLAS 43(1), 2021.
-\bibitem{stackedborrows} R.~Jung, H.-H. Dang, J.~Kang, D.~Dreyer. Stacked Borrows: An
-  aliasing model for Rust. POPL 2020.
-\bibitem{treeborrows} N.~Villani, J.~Hostert, D.~Dreyer, R.~Jung. Tree Borrows. PLDI 2025.
-\bibitem{rfc2094} N.~D. Matsakis. Rust RFC 2094: Non-lexical lifetimes. 2017.
-\bibitem{invalml} Gao and Parreaux. InvalML. OOPSLA 2025. (Reference as cited in the
-  design discussion~\cite{smith-gist}; details to be verified.)
-\bibitem{tofte} M.~Tofte, J.-P. Talpin. Region-based memory management. Information and
-  Computation 132(2), 1997.
-\bibitem{cyclone} D.~Grossman, G.~Morrisett, T.~Jim, M.~Hicks, Y.~Wang, J.~Cheney.
-  Region-based memory management in Cyclone. PLDI 2002.
-\bibitem{se0377} Swift Evolution SE-0377: \code{borrowing} and \code{consuming}
-  parameter ownership modifiers.
-\bibitem{compcert} X.~Leroy. Formal verification of a realistic compiler. CACM 52(7), 2009.
-\bibitem{watt} C.~Watt. Mechanising and verifying the WebAssembly specification. CPP 2018.
-\bibitem{jscert} M.~Bodin, A.~Charguéraud, D.~Filaretti, P.~Gardner, S.~Maffeis,
-  D.~Naudziuniene, A.~Schmitt, G.~Smith. A trusted mechanised JavaScript
-  specification. POPL 2014.
-\bibitem{ellison} C.~Ellison, G.~Rosu. An executable formal semantics of C with
-  applications. POPL 2012.
-\bibitem{mckeeman} W.~M. McKeeman. Differential testing for software. Digital Technical
-  Journal 10(1), 1998.
-\bibitem{csmith} X.~Yang, Y.~Chen, E.~Eide, J.~Regehr. Finding and understanding bugs in
-  C compilers. PLDI 2011.
-\end{thebibliography}
+\bibliographystyle{plain}
+\bibliography{references}
 \end{document}
