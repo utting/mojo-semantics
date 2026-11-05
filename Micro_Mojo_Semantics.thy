@@ -74,6 +74,8 @@ text \<open>
   Example 6 \<^emph>\<open>show\<close> the aliasing hazard.
 \<close>
 
+
+
 section \<open>Run-time values and states\<close>
 
 datatype step = Fld fname | Idx nat nat   \<comment> \<open>index, generation\<close>
@@ -138,6 +140,8 @@ adhoc_overloading Monad_Syntax.bind \<rightleftharpoons> bind_res
 
 datatype rval = RUnit | RV val | RP path    \<comment> \<open>results of calls\<close>
 datatype outcome = Normal | Returned rval   \<comment> \<open>results of statements\<close>
+
+
 
 section \<open>Heap operations\<close>
 
@@ -230,6 +234,8 @@ definition binop_val :: "binop \<Rightarrow> val \<Rightarrow> val \<Rightarrow>
       | And \<Rightarrow> bool_op (\<and>) v1 v2
       | Or \<Rightarrow> bool_op (\<or>) v1 v2)"
 
+
+
 section \<open>Program lookup\<close>
 
 definition find_struct :: "prog \<Rightarrow> name \<Rightarrow> structdecl option" where
@@ -267,6 +273,8 @@ definition rval_to_val :: "state \<Rightarrow> rval \<Rightarrow> val res" where
      RUnit \<Rightarrow> Ok VNone
    | RV v \<Rightarrow> Ok v
    | RP p \<Rightarrow> do { v \<leftarrow> get st p; read_val v })"
+
+
 
 section \<open>The interpreter\<close>
 
@@ -627,6 +635,8 @@ definition run :: "nat \<Rightarrow> prog \<Rightarrow> val list list res" where
      None \<Rightarrow> Err (ErrUnknown ''main'')
    | Some fd \<Rightarrow> do { (_, st) \<leftarrow> invoke P fuel init_state fd []; Ok (out_lines st) })"
 
+
+
 section \<open>Running the examples\<close>
 
 text \<open>
@@ -694,6 +704,8 @@ lemma ex6_output: "run 200 ex6 = Ok [[VInt 0, VInt 1, VInt 1], [VInt 3, VInt 4]]
 
 lemma ex7_output: "run 200 ex7 = Ok [[VInt 2, VInt 1]]"
   by eval
+
+
 
 section \<open>Connection to the region theory\<close>
 
