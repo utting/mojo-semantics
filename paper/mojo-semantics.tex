@@ -313,10 +313,38 @@ big-step semantics~\cite{owens-fbs}, with an error monad. Errors are explicit
 results rather than stuck states, so the theorem ``checked programs never reach
 these errors'' is directly expressible, and the semantics can be \emph{run}
 with \code{value} and \code{eval}. Divergence appears as \code{OutOfFuel}. The
-result type is \code{'a res = Ok 'a | Err err | OutOfFuel}, and the errors are
-\code{ErrUninit}, \code{ErrDangling}, \code{ErrInvalidated}, \code{ErrBounds},
-\code{ErrNotCopyable}, \code{ErrFieldInit} and the type and arity errors that the
-checker rules out.
+result type is \code{'a res = Ok 'a | Err err | OutOfFuel}.
+
+\emph{The semantics is defined for incorrect programs as well as correct ones.}
+A program that breaks Mojo's ownership rules does not get stuck: the interpreter
+detects the violation at run time and stops with a specific error. This is what
+gives the correctness theorem of Section~\ref{sec:sound} its meaning, since it
+says that the checker rules these errors out. The errors are:
+\begin{itemize}
+\item \code{ErrUninit}: reading or writing through an uninitialised or moved-out
+  location, such as a use after \code{x\^{}}, a variable declared without a value, or
+  a field read before \code{\_\_init\_\_} has set it.
+\item \code{ErrDangling}: following a reference into a root that has been freed,
+  which happens when a function returns a reference to one of its own locals.
+\item \code{ErrInvalidated}: following a reference into a list whose shape has
+  changed since the reference was formed, for example after \code{append} or
+  \code{pop}.
+\item \code{ErrNotCopyable}: copying a value that is neither trivial nor a
+  \code{Copyable} struct.
+\item \code{ErrFieldInit}: an \code{\_\_init\_\_} that finishes with some field of
+  \code{out self} still uninitialised.
+\item \code{ErrBounds}: an out-of-range list index, including a negative index and
+  \code{pop} of an empty list. Mojo also reports this at run time, so it is an
+  error of correct programs too.
+\item \code{ErrUnbound x}, \code{ErrUnknown f}, \code{ErrArity} and
+  \code{ErrType msg}: use of an undeclared variable, a call of an unknown function
+  or struct, a call with the wrong number of arguments, and an ill-typed operation
+  (for example a \code{mut} argument that is not a place).
+\end{itemize}
+Argument exclusivity, the ban on implicit copies into \code{var} parameters and
+moving out of borrowed places are static rules that the interpreter does not
+check, so it runs such programs anyway (with visibly aliased output, for
+example); the checker rejects them.
 
 The interpreter is one group of 13 mutually recursive functions. Each takes a
 fuel $n$ as its first argument after the fixed program $P$, and each recursive
@@ -403,7 +431,7 @@ items, in order. Programs without \code{DROP}s still have a C++-like meaning
 (owned locals are destroyed in reverse order at scope end), which never fires
 after elaboration.
 
-\subsection{Checker}
+\subsection{Ownership Checker}
 \code{check\_prog} is a flow-sensitive abstract interpretation of each function
 body, with an abstract state recording (i) which owned variables are definitely
 initialised, (ii) which reference bindings may have been invalidated by a
@@ -420,15 +448,22 @@ than sub-expression granularity.
 
 \section{Correctness results}\label{sec:sound}
 
-The central invariant \code{inv} relates a static environment $\Gamma$ and
-abstract state $\sigma$ to a run-time environment and heap: an owned variable
-that is definitely initialised holds a well-typed value; a borrowed parameter
-denotes a well-typed value (except the fields of \code{out self} not yet
-initialised); and a reference binding denotes a path below its base variable
-which is well-typed unless the reference is flagged as invalidated. Soundness
-is proved by a single induction over the fuel, because expressions, statements
-and calls are mutually recursive. The main theorem (here in \IHOL{} syntax,
-slightly abridged) is:
+The main result of the formalisation is a machine-checked guarantee about the
+ownership checker. It is the formal counterpart of the promise that Mojo
+programmers rely on every day: \emph{if the compiler accepts your program, it
+will not misuse memory}.
+
+\begin{center}
+\fbox{\parbox{0.92\textwidth}{\small
+\textbf{Theorem (safety of checked programs).} If the ownership checker accepts
+a micro-Mojo program, then running it, with any amount of fuel, never fails with
+a use of a moved or uninitialised value, a use of an invalidated or dangling
+reference, a copy of a non-copyable value, a struct left partly initialised by its
+\code{\_\_init\_\_}, or any type, scoping or arity error. The only error it can
+report is an out-of-range list index, which Mojo also reports at run time.}}
+\end{center}
+
+In \IHOL{} the theorem and its corollary read (slightly abridged):
 \begin{lstlisting}[language={},basicstyle=\ttfamily\small]
 theorem run_safe:
   assumes "wf_prog P"
@@ -438,24 +473,172 @@ corollary run_no_ownership_error:
   assumes "wf_prog P" and "run fuel P = Err e"
   shows   "e = ErrBounds" and "~ ownership_err e"
 \end{lstlisting}
-In words: running a program accepted by the checker, with any amount of fuel,
-either terminates, runs out of fuel, or fails with an out-of-range index; it
-never fails with a use of a moved or uninitialised value, a use of an invalid or
-dangling reference, a copy of a non-copyable value, a return before \code{out
-self} is fully initialised, or any type or arity error. The result is stronger
-than ownership safety because the checker also checks types, and excluding
-uninitialised reads needs well-typed values anyway. Out-of-bounds accesses are
-not excluded, which matches Mojo, which reports them at run time. The same
-statement is proved for every statement and expression (\code{stmt\_sound\_calls},
-\code{expr\_sound\_calls}), and a separate lemma shows that elaboration only
-inserts \code{DROP}s (\code{elab\_only\_inserts\_drops}), so safety carries over to
-the elaborated program that is executed. The proofs occupy about 8\,500 lines of
-\IHOL{}, over 340 lemmas, with the call case alone taking more than half.
+
+\paragraph{What \code{wf\_prog} means.}
+\code{wf\_prog P} is defined as \code{check\_prog P = []}: the checker of
+Section~\ref{sec:formal} returns the list of errors in a program, and a
+\emph{well-formed} program is one for which the list is empty. In Mojo terms,
+well-formed means ``the compiler accepts it''. It covers everything the checker
+does: types, definite initialisation and moves, invalidation of references,
+exclusivity of arguments, the origins of returned references, field
+initialisation in \code{\_\_init\_\_}, and structural conditions such as distinct
+names and a parameterless \code{main}. Because the hypothesis is only the
+checker's verdict, the theorem is about \emph{all} accepted programs, not about
+the examples we tried, and it quantifies over every possible execution (the
+semantics is deterministic) and every fuel bound.
+
+\paragraph{What \code{safe} means.}
+\code{safe r} says that the outcome \code{r} of running a program is not an
+error other than a bounds error:
+\code{safe r = ($\forall e.\ r = \mathit{Err}\ e \longrightarrow e = \mathit{ErrBounds}$)}.
+So the program either finishes, or runs out of fuel (it is still running; there is
+no bug yet), or stops at an out-of-range index. \code{ownership\_err} collects the
+errors that correspond to ownership mistakes (\code{ErrUninit},
+\code{ErrDangling}, \code{ErrInvalidated}, \code{ErrNotCopyable},
+\code{ErrFieldInit}), and the corollary says none of them can occur. Since the
+interpreter of Section~\ref{sec:formal} raises exactly these errors for programs
+that break the rules, the theorem says that the checker catches every such
+program \emph{before} it runs.
+
+\paragraph{Why it matters.}
+Without such a theorem, ``the checker accepts it'' is a hope. With it, every
+class of memory error in Table~\ref{tab:errors} is ruled out for every accepted
+program, including those whose bug depends on a particular control-flow path, a
+loop that runs several times, a reference that outlives a function, or a list
+that is appended to while a reference into it is live. The result is stronger
+than ownership safety alone: because the checker also checks types, and excluding
+uninitialised reads needs well-typed values anyway, type and arity errors are
+excluded too. The one error left, an out-of-range index, is not an ownership
+error, and Mojo reports it at run time as well.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}lp{6.2cm}p{2.7cm}@{}}
+\toprule
+Run-time error & The Mojo mistake it models & Excluded?\\
+\midrule
+\code{ErrUninit} & use after move; use of an unset variable or field & yes\\
+\code{ErrInvalidated} & using a reference after \code{append}/\code{pop} on the list & yes\\
+\code{ErrDangling} & returning a reference to a local & yes\\
+\code{ErrNotCopyable} & implicit or explicit copy of a non-\code{Copyable} value & yes\\
+\code{ErrFieldInit} & \code{\_\_init\_\_} that leaves a field unset & yes\\
+\code{ErrUnbound}, \code{ErrUnknown}, \code{ErrArity}, \code{ErrType} & undeclared names, wrong argument count, ill-typed operations & yes\\
+\code{ErrBounds} & list index out of range, \code{pop} of an empty list & \textbf{no} (Mojo also fails at run time)\\
+\bottomrule
+\end{tabular}
+\caption{What the safety theorem rules out for checked programs.}
+\label{tab:errors}
+\end{table}
+
+\paragraph{Programs the checker rejects.}
+Figure~\ref{fig:rejected} shows one small Mojo program for each ownership error.
+Each is rejected by Mojo and by our checker; run without checking, the
+interpreter ends in the error named above it. These are exactly the programs on
+which the theorem is silent, and it is silent on them because the checker refuses
+them.
+\begin{figure}[t]
+\centering
+\begin{minipage}[t]{0.49\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize]
+# ErrUninit
+var a = Res(1)
+consume(a^)
+print(a.id)    # a was moved
+
+# ErrInvalidated
+var l: List[Int] = [1, 2, 3]
+ref e = l[0]
+l.append(4)
+print(e)       # e invalidated
+
+# ErrNotCopyable
+var a = Res(1) # Res is not Copyable
+var b = a.copy()
+\end{lstlisting}
+\end{minipage}%
+\begin{minipage}[t]{0.49\textwidth}
+\begin{lstlisting}[basicstyle=\ttfamily\footnotesize]
+# ErrDangling
+def dangle(ref a: Int) -> ref[a] Int:
+    var local = 5
+    return local   # escapes
+
+# ErrFieldInit
+struct Point:
+    var x: Int
+    var y: Int
+    def __init__(out self, a: Int):
+        self.x = a # y never set
+\end{lstlisting}
+\end{minipage}
+\caption{Programs rejected by the checker, and the run-time error each would cause.}
+\label{fig:rejected}
+\end{figure}
+
+\paragraph{How it is proved.}
+The central invariant \code{inv} relates a static environment $\Gamma$ and an
+abstract state $\sigma$ to a run-time environment and heap: an owned variable that
+is definitely initialised holds a well-typed value; a borrowed parameter denotes a
+well-typed value (except the fields of \code{out self} not yet initialised); and a
+reference binding denotes a path below its base variable which is well-typed
+unless the reference is flagged as invalidated. Soundness is proved by a single
+induction over the fuel, because expressions, statements and calls are mutually
+recursive: if the checker accepts a statement in a state satisfying \code{inv}, the
+interpreter's result is not an error (apart from a bounds error) and the final
+state satisfies \code{inv} for the checker's output state. The same statement is
+proved for expressions and statements (\code{expr\_sound\_calls},
+\code{stmt\_sound\_calls}); \code{run\_safe} is the instance for \code{main}.
+
+\begin{table}[t]
+\centering\small
+\begin{tabular}{@{}llrr@{}}
+\toprule
+Theory & Content & Lines & Lemmas\\
+\midrule
+\code{Mojo\_Region\_Model} & region model & 1\,185 & 27\\
+\code{Micro\_Mojo\_Syntax} & syntax, sugar, examples & 584 & --\\
+\code{Micro\_Mojo\_Semantics} & interpreter, examples & 805 & 15\\
+\code{Micro\_Mojo\_Static} & checker, elaboration & 1\,177 & 10\\
+\code{Micro\_Mojo\_Soundness} & expressions without calls & 1\,169 & 67\\
+\code{Micro\_Mojo\_Soundness\_Stmt} & statements & 2\,048 & 71\\
+\code{Micro\_Mojo\_Soundness\_Calls} & calls, whole programs & 5\,469 & 206\\
+\bottomrule
+\end{tabular}
+\caption{Size of the development (lines of theory text; lemmas, theorems and
+corollaries).}
+\label{tab:effort}
+\end{table}
+The proofs occupy about 8\,700 lines and 344 lemmas (Table~\ref{tab:effort}),
+with the call case alone taking more than half.
+
+\paragraph{The proof found bugs in the checker.}
+A definition that merely looks right can be wrong in corners; a soundness proof
+cannot be completed until it is right. Proving the case of calls exposed several
+holes in the checker, which were fixed: places still in use while a later
+argument or index is evaluated; the origin of a reference returned by a call;
+\code{ref[ns]} origins that are not \code{mut} or \code{ref} parameters;
+reference-returning calls used as values of non-trivial type; an early
+\code{return} in an initialiser; the receiver parameters of initialisers and
+methods; duplicate field names; name clashes between functions and structs; and a
+\code{main} with parameters. Each was a hole that the proof could not close
+until the checker was strengthened.
 
 \paragraph{What the theorem does not say.}
-It says the \emph{model's} checker is sound for the \emph{model's} semantics. It
-does not say the model resembles Mojo. A model that rejected every program would
-satisfy it. This gap is the motivation for the next section.
+\begin{itemize}
+\item It says the \emph{model's} checker is sound for the \emph{model's}
+  semantics. It does not say the model resembles Mojo: a checker that rejected
+  every program would satisfy it. This gap is the motivation for the next
+  section.
+\item It covers programs as the checker accepts them, with or without explicit
+  \code{DROP} statements. Elaboration (Section~\ref{sec:sound-intro}) is proved
+  to insert only \code{DROP}s (\code{elab\_only\_inserts\_drops}: after stripping
+  \code{DROP}s the program is unchanged), but we have not proved that an
+  elaborated program is again accepted by the checker. That is validated by the
+  differential tests, which run elaborated programs, and by the examples, not
+  by a proof.
+\item Termination is not claimed: fuel is exhausted, not diagnosed.
+\item Out-of-range indices are not excluded, as above.
+\end{itemize}
 
 \section{Differential testing}\label{sec:dt}
 
@@ -556,7 +739,7 @@ Difference & Mojo~1.2.0 & Resolution\\
 \midrule
 Unused \code{var} parameter (d09, d14) &
  destroyed when the callee is entered &
- \textbf{model fixed:} elaboration drops it on entry; soundness still holds\\[0.4em]
+ \textbf{model fixed:} elaboration drops it on entry; proofs unaffected\\[0.4em]
 Fields in \code{\_\_deinit\_\_} (d05, d13) &
  each field destroyed ASAP; unused ones before the body &
  \textbf{documented divergence;} test asserts the mismatch\\[0.4em]
@@ -578,8 +761,9 @@ never used lived until the callee returned. Mojo destroys it on entry. The fix
 was a small change to the elaboration pass: the body starts with drops of the
 owned parameters that are not live on entry. Because the soundness proofs are
 about the checker and interpreter, not the particular elaboration, the proofs
-were unaffected, which we confirmed by rebuilding. This is the kind of change
-the proof structure is meant to make cheap.
+were unaffected, which we confirmed by rebuilding. (The flip side is that the
+soundness theorem says nothing about the elaboration, as discussed in
+Section~\ref{sec:sound}.)
 
 \paragraph{Field-wise destruction in \code{\_\_deinit\_\_}.}
 In the model, \code{\_\_deinit\_\_} runs as a body over a borrowed \code{self}

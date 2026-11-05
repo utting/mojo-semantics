@@ -31,7 +31,8 @@ It has three parts:
 
 The main result: a program accepted by `check_prog` never fails with an
 ownership or type error when run (only an out-of-range index, which Mojo also
-reports at run time). The elaborated program keeps this property.
+reports at run time). Elaboration is proved to insert only drops; that elaborated programs are
+still accepted by the checker is validated by the tests, not proved.
 
 The `ROOT` file defines two sessions:
 
