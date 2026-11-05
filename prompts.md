@@ -1640,3 +1640,112 @@ The commit has the paper sources, the two generated snippets-*.tex files, build.
 I left prompts.md and hello-world/ out because they aren't part of this work. They are still uncommitted.
 
 You said "try again" in your message, and I couldn't tell what you wanted retried. I took "yes" as the go-ahead to commit. If you meant something else, tell me what.
+
+
+
+## Paper Improvements
+
+❯ I would like to make some more changes to the paper, to increase its attactiveness to Mojo developers, and to make more of a song and dance about the correctness results (Section 5)!  First, let's change the title to "A Formal Semantics of Mojo 1.2 and Its Ownership Checker".  Add subsections in Section 4 for: "Abstract Syntax", "Sugared Syntax", "Memory Model", and "Semantics".  Put the ex1 example (plus shared code) into a floating figure with two columns of code to save space.
+
+The figure and subsections render as intended. I'm fixing the doubled "Figure 1: Example 1:" caption and committing.
+
+Those three changes are in and committed as c2963d9 on the paper branch. The paper still builds to 13 pages.
+
+- Title: now "A Formal Semantics of Mojo 1.2 and Its Ownership Checker".
+- Section 4 subsections: 4.1 Abstract Syntax, 4.2 Sugared Syntax, 4.3 Memory Model and 4.4 Semantics. You listed four, but "ASAP Elaboration" and "Checker" would otherwise have sat oddly under "Semantics", so I made them subsections 4.5 and 4.6. Say if you want them folded back.
+- Figure 1: a floating figure with the shared code on the left (Res, consume, bump, pick) and main on the right, with Mojo 1.2's output as comments under main. The prose after it explains the output, and the sugared AST of ex1_main follows. The figure floated to the top of the next page, away from the text that cites it.
+
+One layout flaw: the AST of ex1_main splits across a page break. I'd fix that once the section 5 edits settle the layout.
+
+For the correctness section, here are the changes I'd consider. Which should I go with?
+- A boxed headline statement of the theorem in plain English up front.
+- A "what this rules out" table that pairs each excluded error with the Mojo mistake it corresponds to.
+- A short Mojo example for each error that the checker rejects.
+- A proof-effort table: lines and lemmas per theory.
+
+
+❯ I made some white-space changes to the Isabelle theories on the main branch.  Pull those into 'paper'.
+
+  Ran 2 shell commands
+
+I merged main into paper (merge commit 629b2f6) with no conflicts. That brings in your commit ac05a35, the blank lines before sections, which touched six theories. Isabelle ignores whitespace, so I didn't rebuild. The 11 snippet markers in Micro_Mojo_Syntax.thy are still there.
+
+One leftover is still uncommitted: Micro_Mojo_Semantics.thy has the same kind of blank-line edit (12 added lines) in your working tree, plus a backup file Micro_Mojo_Semantics.thy~. It isn't in ac05a35, so I left it alone. Commit it on main if you want it, then I'll pull it in too.
+
+If you want to change main further, commit it there and I'll merge again. Do you want me to continue with the Section 5 changes?
+
+✻ Cooked for 30s · done 5:47 pm
+
+❯ Yes, I added the white space to Micro_Mojo_Semantics.thy too, so please pull that into paper.
+
+  Ran 2 shell commands
+
+I merged your main commit 5f2942a, the blank lines in Micro_Mojo_Semantics.thy, into paper. The merge is 2103e5c with no conflicts. paper now has all your whitespace changes, and Micro_Mojo_Semantics.thy is no longer modified in the working tree. As before, I didn't rebuild, since only whitespace changed.
+
+I'll go ahead with the Section 5 changes next. Which do you want?
+- a boxed plain-English statement of the theorem
+- a table pairing each excluded error with the Mojo mistake it corresponds to
+- a short Mojo example for each rejected error
+- a proof-effort table with lines and lemmas per theory
+
+I can do all four if you'd rather not choose.
+
+> Good.  Change 4.6 title to "Ownership Checker" for clarity.  And in 4.4 Semantics, can you expand out the list of errors into bullet points and briefly describe each error?  This will emphasize even more that the semantics is for INCORRECT programs (catching the errors at runtime), as well as for checked programs.  Yes, then implement your four changes in the correctness section.  We need a bit more informal explanation of wf_prog and 'safe' too, to explain the importance and impact of theorem run_safe.
+
+
+All the changes are in and committed as 5bdb46d on paper. The paper is now 15 pages.
+
+Correction: the paper and README.md both said safety "carries over to the elaborated program". That is not proved. run_safe covers programs as the checker accepts them, with or without explicit drops. The only proved elaboration result is elab_only_inserts_drops: after stripping DROPs the program is unchanged. That elaborated programs are still accepted by the checker is validated by the tests, not proved. Both documents now say this, and the point appears in the "what the theorem does not say" list.
+
+- 4.6 is now "Ownership Checker".
+- 4.4 Semantics: the errors are now bullets with a short description each. A new paragraph says the semantics is defined for incorrect programs, which is why the theorem has meaning. It also notes that the interpreter does not check argument exclusivity, implicit copies into var parameters, or moves out of borrowed places, so it runs such programs anyway.
+- Section 5:
+  - A boxed statement of the theorem in plain English.
+  - Explanations of wf_prog (check_prog P = [], meaning the compiler accepts it) and safe. They cover why it matters, and the paper says outright that a checker rejecting every program would also satisfy the theorem.
+  - A table pairing each run-time error with the Mojo mistake it models and whether the theorem excludes it. ErrBounds is the one it doesn't exclude.
+  - Figure 2: small rejected programs for five of the errors (ErrUninit, ErrInvalidated, ErrNotCopyable, ErrDangling, ErrFieldInit).
+  - A proof-effort table: about 8,700 lines and 344 lemmas.
+  - A new "the proof found bugs in the checker" paragraph. It lists the holes that proving the call case exposed, taken from Micro_Mojo_Soundness_Calls.thy. I softened my first wording to "each was a hole that the proof could not close", since the theory comment doesn't say each one could crash a run.
+
+The Figure 2 examples are condensed from ex2, ex3, ex4_bad, ex8 and m10. Mojo rejects all five, though the m10 message is "no attribute copy", not a copy error. The type, scoping and arity errors have table rows but no example program.
+
+Do you want me to merge paper into main, or keep iterating on the paper first?
+
+✻ Cooked for 2m 19s · done 5:54 pm
+
+❯ In Section 4.1 change "Declarations follow" to "Finally we define function declarations and structure declarations:".  Can you find and download the BibTeX entries for the papers you've cited and put them into a *.bib file, then use bibtex to build the references?
+
+
+dblp serves a bot challenge, so I won't use it. Crossref and DOI content negotiation are the sanctioned way to get BibTeX, so I'll use those.
+
+I've pulled BibTeX for 15 of the 19 cited works from Crossref and arXiv, and I'm now assembling references.bib and switching the paper to bibtex. · summary
+
+The sentence in 4.1 now reads "Finally we define function declarations and structure declarations:". The references are now a BibTeX file, paper/references.bib, built with bibtex. The paper is still 15 pages, with 20 references, no bibtex warnings and no undefined citations. It's committed as d60fa66 on paper.
+
+Where the entries came from:
+- 15 entries were downloaded by DOI from Crossref, and the Oxide entry came from arXiv. Each Crossref entry has a comment with its DOI.
+- Four entries are hand-written: the Mojo manual, Nick Smith's gist, Rust RFC 2094 and Swift SE-0377. They are web documents with no downloadable BibTeX.
+- The Isabelle/HOL book and the McKeeman article are hand-written too, because Crossref had no usable metadata for them. McKeeman's volume and pages come from my memory and I couldn't check them.
+- dblp served a bot challenge, so I didn't use it. I used Crossref and arXiv instead.
+
+Corrections the download made:
+- Oxide authors: my from-memory list wrongly included Matsakis. The arXiv authors are Weiss, Gierczak, Patterson and Ahmed.
+- InvalML: I had no reference details before. It is Gao and Parreaux, "A Lightweight Type-and-Effect System for Invalidation Safety…", PACMPL 9(OOPSLA2), 2025. The abstract confirms the nickname InvalML, and the related-work sentence now says so.
+- Years: the bibliography uses the publisher's dates, which differ from the conference years in my earlier prose. RustBelt is 2017 (PACMPL 2(POPL)) and Stacked Borrows is 2019 (PACMPL 4(POPL)).
+
+I braced a few title words (Rust, JavaScript, WebAssembly, C, Cyclone, RustBelt) so bibtex doesn't lowercase them. The acknowledgements no longer say the bibliography was written from memory. They now say the entries were downloaded from Crossref and arXiv, with a few hand-written ones to check.
+
+paper/build.sh now sets BIBINPUTS so bibtex finds references.bib.
+
+❯ Add access date 29 Oct 2026 for ref [14] (Nick Smith) and Nov 2026 for [8], [10] and [15]
+
+I added the access dates and committed them as 6d9dd9b on paper. Reference [14], Nick Smith's gist, now reads "Accessed 29 October 2026". References [8] (RFC 2094), [10] (Mojo manual) and [15] (Swift SE-0377) read "Accessed November 2026".
+
+My first edit broke the [14] entry in references.bib with a misplaced brace, and I fixed it before committing. The paper builds cleanly again. It is now 16 pages, one more than the 15 before this change, because the longer reference entries wrap further.
+
+❯ merge paper into main
+
+
+I merged paper into main as a fast-forward, so there is no merge commit. main is now at 6d9dd9b, which is paper's tip, with the paper, snippets, bibliography and theory changes. main is 6 commits ahead of origin/main. I haven't pushed anything, so you can review and push when ready.
+
+Your uncommitted prompts.md change and the untracked hello-world/ were not touched. The paper branch still exists. Delete it if you no longer need it.
