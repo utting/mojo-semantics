@@ -1396,3 +1396,247 @@ The README covers:
 
 I didn't run a build, since only a Markdown file changed. hello-world/ is still untracked.
 
+Session
+
+Total cost:            $129.43
+Total duration (API):  4h 34m 59s
+Total duration (wall): 7d 6h 6m
+Total code changes:    2069 lines added, 0 lines removed
+Usage by model:
+    claude-haiku-5-5:  26.5k input, 4.5k output, 0 cache read, 0 cache write ($0.0049)
+     claude-sonnet-5:  310 input, 164.0k output, 21.4m cache read, 273.3k cache write ($7.01)
+     claude-opus-5-5:  184.9k input, 1.1m output, 309.8m cache read, 3.8m cache write ($115.82)
+   claude-sonnet-5-5:  6.0k input, 127.7k output, 22.6m cache read, 765.4k cache write ($6.59)
+Prompt cache (main):   768 requests · 99% of input tokens from cache · 6 misses (last 18m 57s ago — likely cause: idle past the 1h TTL, 1.9m tokens re-cached) · 5 expected rebuilds (compaction or tool-result clearing) · warm (1h TTL, last activity 8m 36s ago)
+
+
+
+
+
+
+
+> Write an academic paper (in LaTeX) describing this project, covering the benefits of formalization, the challenges of Mojo, key aspects of the formalization and correctness results, the differential testing including discoveries of differences, plus related work and conclusion, and an acknowledgements section describing your contributions.
+
+
+I've written the paper as paper/mojo-semantics.tex. It compiles to a 9-page PDF (paper/mojo-semantics.pdf) with no errors; the only warning is a minor overfull line. Nothing is committed.
+
+It covers:
+- Introduction: the contributions.
+- Why formalise, and why Mojo is hard: the benefits, and the specific difficulties.
+- Region model: the model of the gist.
+- Micro-Mojo: its syntax, semantics, checker and the ASAP destructor-insertion pass.
+- Soundness: run_safe and its corollary.
+- Differential testing: the pipeline, the translator and the 76-program suite. Mojo accepted 53 of the 76, rejected 20 at compile time, and aborted 3 at run time.
+- Findings: the four differences between the model and Mojo, set out in a table.
+- Threats to validity, related work, conclusion and future work.
+- Acknowledgements: what you decided and directed, and what I produced. I also note that the expected outputs were written by hand before the compiler was run.
+
+Check before you use it:
+- Bibliography: I wrote it from memory, and the paper says so in the acknowledgements. Please check every entry against the source. The InvalML entry is the weakest: I don't know its title or authors, so it is marked "details to be verified".
+- Quoted translator error: I replaced my first, invented version with the real message from suite/rejected/a09_short_circuit.mojo.
+- Wording: I removed one acknowledgements sentence saying you reviewed all changes before they were pushed, because I couldn't back it up.
+- Venue style: it uses the plain article class. Tell me the venue and I'll switch to its template.
+
+Do you want this committed? I'd put it on a branch, not directly on main.
+
+✻ Crunched for 2m 24s · done 4:23 pm
+
+Session
+
+Total cost:            $129.81
+Total duration (API):  4h 37m 23s
+Total duration (wall): 8d 9h 36m
+Total code changes:    2069 lines added, 0 lines removed
+Usage by model:
+    claude-haiku-5-5:  26.5k input, 4.5k output, 0 cache read, 0 cache write ($0.0049)
+     claude-sonnet-5:  310 input, 164.0k output, 21.4m cache read, 273.3k cache write ($7.01)
+     claude-opus-5-5:  184.9k input, 1.1m output, 309.8m cache read, 3.8m cache write ($115.82)
+   claude-sonnet-5-5:  6.1k input, 145.8k output, 23.4m cache read, 794.4k cache write ($6.97)
+Prompt cache (main):   775 requests · 99% of input tokens from cache · 6 misses (last 1d 3h 49m ago — likely cause: idle past the 1h TTL, 1.9m tokens re-cached) · 5 expected rebuilds (compaction or tool-result clearing) · cold — idle 1d 3h 23m, next turn re-caches ~120.1k tokens
+
+
+
+## 2026-11-04 Wednesday. Paper Additions
+
+❯ I want a bit more technical detail added to the paper, to show how things work, and what micro-Mojo covers.  Can you add the AST for Micro-Mojo into Section 4 (use Isabelle snippets if you can, so the paper stays up-to-date as the theory changes. See https://isabelle.in.tum.de/website-Isabelle2026-RC1/dist/Isabelle2026-RC1/doc/sugar.pdf), and then show a small example in Mojo syntax followed by in the sugared AST (I suggest that showing the shared methods plus ex1 in Mojo syntax, plus just ex1 main method in AST form would be good).  Then in the Semantics paragraph discuss the mutually recursive functions of the interpreter, describing the key functions, to make things more concrete for the readers.
+
+  Ran 5 shell commands
+
+I've confirmed the syntax theory matches the paper; I'm checking the interpreter's invoke, call_fun and exec clauses next, then setting up snippet extraction. · summary
+
+  Ran 3 shell commands
+
+I've added snippet markers to Micro_Mojo_Syntax.thy so the paper can pull the AST declarations directly, and a background build is generating their LaTeX now, which I'll wait on with a monitor. · summary
+
+Both builds are queued (the main session with the markers, then the new Mojo_Paper session). I'm waiting for the main build to finish before checking the generated LaTeX.
+
+  Ran 1 shell command
+
+⏺ Monitor "Wait for Isabelle document build" stream ended
+
+  Searched for 1 pattern, ran 4 shell commands
+
+Status: the full document build failed on unrelated LaTeX issues in the big theories. I found isabelle document -S, which writes just the LaTeX sources, so I'm trying that.
+
+Snippet extraction works and the Syntax declarations render as proper Isabelle LaTeX. I'm now writing the regeneration script and the interpreter-equation snippets, then the paper section. · summary
+
+Snapshots are generated, and I'm now editing the paper's Section 4 (AST, sugar table, ex1 example) and the Semantics paragraph with the interpreter walkthrough. · summary
+
+  Read 2 files, ran 1 shell command
+
+Status: the Semantics section renders well, with the generated invoke and run equations. I'm checking the AST page, then fixing one small symbol.
+
+The paper now has the AST, the sugar and the ex1 example in Section 4, and a longer interpreter walkthrough in the Semantics paragraph. It compiles to 13 pages (paper/mojo-semantics.pdf) with no LaTeX errors, and isabelle build -d . Mojo_Tests still passes. Nothing is committed.
+
+What was added
+
+Section 4:
+- Abstract syntax: the datatypes for types, conventions, operators, places and expressions, statements, declarations and programs. They are Isabelle snippets, each with a short explanation.
+- Sugared syntax: the notation and keywords (including the expression-notation snippet). The prose says the sugar is only notation, so theorems about the syntax apply to sugared programs unchanged.
+- Example: the shared declarations plus ex1 in Mojo syntax, then only ex1_main in sugared AST form. The text explains why Mojo's output is 11, drop 2, got 11, drop 11, 1. b is destroyed right after the last use of r, whose origin is {a, b}, and before consume runs.
+
+Semantics paragraph:
+- a table of the 13 mutually recursive interpreter functions and their roles
+- prose on how values, paths and environments work
+- how pass_args implements each argument convention
+- how call_fun handles constructors and __init__
+- exec and drop_path
+- two equations printed straight from the theory, invoke and run
+
+How the snippets stay current
+
+- The AST declarations are marked in Micro_Mojo_Syntax.thy with \snip markers, as sugar.pdf describes. The invoke and run equations come from @{thm} in paper/Paper_Snippets.thy. That theory is a new Mojo_Paper session in ROOT, and it fails if a quoted equation stops existing.
+- sh paper/make-snippets.sh regenerates paper/snippets-*.tex. LaTeX errors in the unrelated big theories are ignored there, because only the generated .tex sources are used. Compile the paper with TEXINPUTS=".:/Applications/Isabelle2026.app/Contents/Resources/lib/texinputs:" latexmk -pdf mojo-semantics.tex.
+- The Mojo program listing is still typed by hand in the paper. The theory only holds it as a comment, so it won't update automatically.
+
+Changes outside the paper
+
+- Micro_Mojo_Syntax.thy has the snippet markers.
+- Two doc-text fixes that were breaking LaTeX: Mojo_Region_Model.thy (a # in a comment) and Micro_Mojo_Semantics.thy (a bare λ).
+- ROOT has the new session and a document_files entry.
+- .gitignore covers the paper build outputs.
+
+I dropped the idea of generating the interpreter function signatures, because Isabelle prints expanded types like (char list × binding) list, which is unreadable. They are in the hand-written table instead.
+
+Do you want these committed on a new branch? Per the earlier slip, I won't touch main.
+
+❯ A few minor tweaks first: the double quotes in the Isabelle snippets are not showing in the PDF output.  For example, the SVar line in the stmt datatype shows as 'SVar vname ty expr option'.  It needs the double quotes around "expr option".  Can you fix this?  Secondly, let's drop the Isabelle notation declarations from the paper (since they are not very readable for non-Isabelle readers), but keep the English descriptions of the sugar syntax.  Thirdly, I really like the Mojo examples you've given as comments on the SVar and SRef constructors of stmt - can you add similar Mojo examples to most of the other stmt constructors?  And likewise in the expr and place datatypes?  I think such examples would really help readers who know Mojo but not formal datatypes / ASTs.
+
+  Ran 5 shell commands
+
+I've confirmed the syntax theory matches the paper; I'm checking the interpreter's invoke, call_fun and exec clauses next, then setting up snippet extraction. · summary
+
+I've added snippet markers to Micro_Mojo_Syntax.thy so the paper can pull the AST declarations directly, and a background build is generating their LaTeX now, which I'll wait on with a monitor. · summary
+
+⏺ Monitor(Wait for Isabelle document build)
+Monitor started · task bjsznehes · timeout 900s
+
+Both builds are queued (the main session with the markers, then the new Mojo_Paper session). I'm waiting for the main build to finish before checking the generated LaTeX.
+
+  Ran 1 shell command
+
+⏺ Monitor "Wait for Isabelle document build" stream ended
+
+  Searched for 1 pattern, ran 4 shell commands
+
+Status: the full document build failed on unrelated LaTeX issues in the big theories. I found isabelle document -S, which writes just the LaTeX sources, so I'm trying that.
+
+
+Snippet extraction works and the Syntax declarations render as proper Isabelle LaTeX. I'm now writing the regeneration script and the interpreter-equation snippets, then the paper section. · summary
+
+Snapshots are generated, and I'm now editing the paper's Section 4 (AST, sugar table, ex1 example) and the Semantics paragraph with the interpreter walkthrough. · summary
+
+  Read 2 files, ran 1 shell command
+
+Status: the Semantics section renders well, with the generated invoke and run equations. I'm checking the AST page, then fixing one small symbol.
+
+  Read 1 file
+
+Quotes and the new Mojo comments now render. Two cosmetic fixes remain, the ragged comment gaps and a repeated "ASAP" phrase, and I'm making both before one rebuild. · summary
+
+All three tweaks are in and the paper still compiles cleanly to 13 pages. Nothing is committed yet.
+
+1. Double quotes: "expr option" and the other quoted types now show in the PDF. I fixed it in the paper's LaTeX, because Isabelle's style file hides those quotes by default. The string "hi" in the new examples had the same problem and is fixed.
+2. Notation declarations: the notation snippet is gone from the paper, and its marker is gone from Micro_Mojo_Syntax.thy. The "Sugared syntax" paragraph is rewritten in plain English. It covers how places, calls and sequencing are written and which statement keywords exist, and it says the sugar is purely notational.
+3. Mojo examples: every constructor of place, expr and stmt now has a Mojo example in its comment, in Micro_Mojo_Syntax.thy. The paper picks them up through the generated snippets. Examples:
+   - places: x, p.f, p[i]
+   - expressions: p^, p.copy(), f(a, b) or Res(1), len(p), [1, 2, 3]
+   - statements: p = e, print(a, b), if c: s1 else: s2, while c: s, return e or return
+   - SDrop has no Mojo form, so its comment says it is inserted by ASAP elaboration.
+
+Two small things you may notice. The comment dashes aren't aligned in a column, because the proportional font collapses spacing. I also fixed a sentence that read "ASAP elaboration of the ASAP elaboration".
+
+The theory edits touch Micro_Mojo_Syntax.thy, Micro_Mojo_Semantics.thy, Mojo_Region_Model.thy and ROOT. I rebuilt Mojo_Semantics after them, but I haven't re-run Mojo_Tests since the comment edits. The earlier run was green.
+
+Should I commit the paper and these theory edits to a new branch?
+
+
+❯ Can you make your output less verbose by not showing diffs of uninteresting files that are covered by .gitignore?  Is there a setting that I should change to avoid seeing those diffs?
+
+I'm not sure which output you mean, and I don't know of a Claude Code setting that hides diffs for gitignored files. These are the likely sources:
+
+- Edit and Write diffs: Claude Code shows a diff whenever I edit a file. I can't suppress those per file from my side. Generated files such as paper/snippets-*.tex would show up here if I write them directly, but I only produce them with scripts.
+- git diff output I ran: the one large diff I printed was git diff Micro_Mojo_Syntax.thy. That is a tracked file, so .gitignore would never have hidden it. I should have used git diff --stat or filtered the output instead of dumping about 80 lines.
+- Build and LaTeX logs, and sed/cut dumps of generated .tex: these were mostly for my own checking. I can pipe them to tail or grep, or send them to a log file.
+
+From now on I'll use --stat or narrow filters for diffs and keep generated or ignored files out of my output.
+
+If you tell me which output bothered you, I can say whether a setting would help. The transcript view toggle (ctrl+o) and /config are where I'd look for output verbosity, but I haven't checked what they offer in your version.
+
+One related question: paper/snippets-syntax.tex and paper/snippets-interp.tex are generated, but they are currently not in .gitignore. I think they should stay tracked, so the paper compiles without Isabelle. Do you want that, or should they be ignored and regenerated with make-snippets.sh?
+
+✻ Brewed for 13s · done 3:13 pm
+
+❯ Yes, I think it is good to track those generated snippets*.tex files, because a year or two later it can be a pain to get the right version of Isabelle set up to regenerate them.  The diffs that I am seeing a lot are: mojo-semantics.log mojo-semantics.aux etc.  And also isabelle-out/document/comment.sty etc.
+
+  Ran 1 shell command
+
+Those files are already ignored by git, so the diffs you see don't come from git. git status doesn't list them, and git check-ignore confirms the rules cover paper/*.log, paper/*.aux and paper/isabelle-out/.
+
+I don't know of a Claude Code setting that stops it from showing changes to files on disk, so I can't point you to one. That display seems to track files the build changes, whether or not git ignores them.
+
+What I can do is stop writing those files inside the project directory:
+- run latexmk with -outdir pointing at a temp directory, so .aux, .log and the rest never land in paper/
+- send the Isabelle document output (isabelle-out, isabelle-out-paper, which hold comment.sty and similar) to a temp directory too
+- copy only mojo-semantics.pdf back into paper/, if you want it kept there
+
+For the Isabelle output I'd pass document_output on the command line in make-snippets.sh. The Mojo_Paper session sets its output directory in ROOT, and I'd change that too.
+
+I'll leave the generated snippets-*.tex files tracked, as you suggested.
+
+Should I make that change? It touches paper/make-snippets.sh, ROOT and a small build script for the paper.
+
+❯ Yes please.
+
+The build no longer writes into the project directory. paper/ now holds only the sources, the two tracked snippets-*.tex files, the two scripts and the PDF.
+
+- paper/build.sh: runs latexmk with its output directory in a temp directory, so .aux, .log and the rest stay out of the project. It copies only mojo-semantics.pdf back into paper/.
+- paper/make-snippets.sh: sends the Isabelle document output (comment.sty and the like) to the same temp directory. I removed the document_output setting from the Mojo_Paper session in ROOT, and the script now passes it on the command line.
+- Temp location: both scripts use $MOJO_PAPER_BUILD, or a temp directory if it isn't set.
+- Cleanup: I deleted the old isabelle-out* directories and LaTeX build files from paper/.
+
+I ran both scripts: the snippets regenerate and the paper builds to 13 pages.
+
+While testing, a failed snippet step truncated snippets-syntax.tex to empty. The cause was that Isabelle skips a session it considers up to date, so the first build step produced no LaTeX. I fixed that with -f (force rebuild) in step 1, and regenerated the file. The scripts still don't guard against an empty result, so a failure like that could truncate a snippet file again.
+
+Still uncommitted, on main: the paper, the three theory edits and ROOT. Do you want a branch and a commit?
+
+❯ yes
+
+⏺ API Error: Can't reach the API server — check your internet or DNS (ENOTFOUND)
+
+✻ Worked for 2m 58s · done 3:38 pm
+
+※ recap: We're formalising Mojo's ownership rules in Isabelle, validating them against the compiler, and writing the paper. That work is done but uncommitted on `main`. Next action: your go-ahead to commit it to a new branch.
+
+❯ try again
+
+  Ran 1 shell command
+
+The paper is committed as 06e5c7c on a new branch, paper. main is untouched, and nothing is pushed.
+
+The commit has the paper sources, the two generated snippets-*.tex files, build.sh, make-snippets.sh, the PDF, the three theory edits (marker comments, the Mojo examples on the place, expr and stmt constructors, and the LaTeX fixes) and the ROOT and .gitignore changes.
+
+I left prompts.md and hello-world/ out because they aren't part of this work. They are still uncommitted.
+
+You said "try again" in your message, and I couldn't tell what you wanted retried. I took "yes" as the go-ahead to commit. If you meant something else, tell me what.
