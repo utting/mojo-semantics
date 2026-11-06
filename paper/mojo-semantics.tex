@@ -34,7 +34,7 @@
 
 \title{A Formal Semantics of Mojo 1.2 and Its Ownership Checker}
 \author{Mark Utting\\ \small (with the assistance of Claude; see Acknowledgements)}
-\date{\today\\[0.3em]\small Draft}
+\date{6 Nov 2026}
 
 \begin{document}
 \maketitle
@@ -43,16 +43,17 @@
 Mojo is a new systems programming language that combines Python-like syntax
 with value ownership, argument conventions, first-class \emph{origins} and
 as-soon-as-possible (ASAP) destruction of values. Its memory-safety rules are
-described in prose and by the behaviour of a closed, rapidly evolving compiler;
-there is no formal specification. We report on a formalisation in \IHOL{} of a
-subset, \micro{}, that is small enough to be tractable but large enough to
-exhibit the interesting ownership phenomena: a big-step semantics (a clocked
+described in prose and by the behaviour of a rapidly evolving compiler;
+there is no formal specification. We report on a formalisation in \IHOL{} of
+the ownership system plus a subset of the Mojo language,
+\micro{}, that is large enough to exhibit the interesting ownership phenomena
+but small enough to be tractable: a big-step semantics (a clocked
 definitional interpreter with explicit errors), a flow-sensitive ownership and
 type checker, an ASAP destructor-insertion pass, and a machine-checked proof
 that checked programs never fail with an ownership or type error. A formal
 model proves facts about \emph{itself}, so we also validate it against the real
 compiler. We built a translator from Mojo source to the \IHOL{} syntax that
-rejects programs outside the subset with an explanation, and used it to generate
+rejects programs outside the \micro{} subset with an explanation, and used it to generate
 an \IHOL{} theory that evaluates 76 Mojo programs together with the
 behaviour (output, compile error or run-time error) that Mojo~1.2.0 showed. The
 model agrees with the compiler on all of them, apart from two that expose a
@@ -73,7 +74,46 @@ at the end of a scope. These rules decide whether a program compiles, when
 destructors run and therefore what a program prints, yet they are specified
 only informally.
 
-This paper describes a formalisation of that core in \IHOL{}~\cite{isabelle}.
+\paragraph{Background:}
+This paper was conceived when I (the human author) was searching the web to
+learn a little about Mojo and came across Nick Smith's fascinating gist post
+``An alternative model for `lifetimes' in Mojo''~\cite{smith-gist}, which
+starts with this note to readers (italics added):
+\begin{quote}
+  \textbf{Note to readers:} This document is an \textbf{early draft} of a model for
+  memory-safe references that I've been working on for the last ~2 years.
+  While I think it is quite promising, the design is unfinished.
+  \emph{The ``regions'' that I present in this document have not been given a
+  formal semantics}, and I have not explained where they originate from.
+  My goal is merely to convince you that the design is promising,
+  and that if seen to completion, it would advance the frontier of
+  zero-cost memory safety.
+\end{quote}
+This struck me as a fun challenge: to formalise this lifetimes model
+as a machine-checked theory in Isabelle/HOL, to see if it is consistent,
+or if there are missing edge cases in the assumptions, and if we can prove
+that it ensures all the desired memory-safety properties that we want.
+Furthermore, I wondered if the new interactive PIDE-MCP connection to
+Isabelle~\cite{pide_mcp_code} might enable a good agentic AI assistant
+to do the formalisation from the informal gist post into a useful formal
+theory that enables us to prove the desired properties.  Claude code
+(Sonnet 5) did a remarkably good job of formalising the gist plus its
+related discussion threads (see Section~\ref{sec:region} and
+\code{Mojo\_Region\_Model.thy}~\cite{mojo-semantics}),
+including documenting the design alternatives and rationales, and
+proving some key properties of the model.
+This then raised the question: `But is this regions model
+consistent with the current Mojo compiler?'.
+So we formalised the semantics of a small subset of Mojo 1.2, called
+micro-Mojo (Section~\ref{sec:formal})
+to enable differential testing of the formal regions model against the current
+Mojo compiler, with outcomes as described in Section~\ref{sec:dt}.
+Micro-Mojo contains enough features so that every ownership rule can be seen
+in a program's output, and sample programs can be written that break each
+static ownership rule.
+
+\paragraph{Overview:}
+This paper describes a formalisation of micro-Mojo in \IHOL{}~\cite{isabelle}.
 Our contributions are:
 \begin{enumerate}
 \item a \emph{region model} of the memory-management proposal for Mojo
@@ -87,6 +127,7 @@ Our contributions are:
   evaluated in batch mode, a suite of 76 programs, and an account of the
   differences it found (Sections~\ref{sec:dt} and~\ref{sec:findings}).
 \end{enumerate}
+
 The paper is also a case study in a way of working: the entire development,
 including the proofs, the translator and the test programs, was produced by an
 AI assistant under the direction of the author, with the proof assistant and
@@ -105,8 +146,8 @@ run and their output compared with expectations before any theorem is proved;
 (iii) \emph{guarantees}: soundness is a statement about all programs, not those
 we thought to test; and (iv) a \emph{reference} against which a compiler or an
 alternative language design can be compared. Because the model is written in a
-proof assistant, claims such as ``the elaboration pass only inserts drops'' are
-checked rather than argued.
+proof assistant, claims such as ``the ASAP elaboration pass only inserts drops'' are
+formally proved rather than argued informally.
 
 \paragraph{Challenges specific to Mojo.}
 \begin{itemize}
@@ -160,7 +201,7 @@ all six conventions; structs with fields, \code{@fieldwise\_init},
 self)} and methods; and the statements \code{var}, \code{ref} bindings,
 assignment, \code{if}, \code{while}, \code{return}, \code{print} and an explicit
 \code{drop}. Traits, generics, closures, \code{raises}, \code{for}, pointers and
-overloading are left out (Section~\ref{sec:related} discusses extension).
+overloading are left out (Section~\ref{sec:concl} discusses extension).
 Places (\code{x}, \code{p.f}, \code{p[i]}) are a separate syntactic category
 from expressions, which lets the semantics decide from the callee's convention
 whether an argument is passed as a location or as a value.
@@ -213,9 +254,9 @@ Mojo's \code{-> ref[a, b] T}: the origin is the union of the listed parameters.
 
 \subsection{Sugared Syntax}
 Writing programs as raw constructor applications would be unreadable, so the
-theory defines notation that mimics Mojo where Isabelle's syntax allows it and
-uses upper-case keywords elsewhere (in the style of the IMP language). A variable
-used as a place is marked with a section sign, a field access and an index look
+theory defines notation that mimics Mojo where Isabelle's syntax allows it and uses
+upper-case keywords elsewhere (in the style of the IMP language~\cite{concrete-semantics}).
+A variable used as a place is marked with a section sign, a field access and an index look
 like \code{p.f} and \code{p[i]}, and a place used as an expression is wrapped in
 angle brackets. Calls are written with braces around the argument list, and
 statements are sequenced with a double semicolon. Statements use the keywords
@@ -226,7 +267,7 @@ The sugar is purely notational: it is parsed to, and printed from, the datatypes
 above, so every theorem about the syntax applies to sugared programs unchanged.
 
 \paragraph{An example.}
-All examples of the theory come as a Mojo program and its encoding. The first,
+All examples of the theory come as a Mojo program and its AST encoding. The first,
 shown in Figure~\ref{fig:ex1}, exercises the conventions, a reference return, a
 transfer and a list. It uses a resource whose destructor prints, so that the
 order of destruction is visible in the output, and three small functions.
@@ -311,8 +352,9 @@ and a reference into one is \code{ErrDangling}.
 The semantics is a total, fuel-bounded function in the style of functional
 big-step semantics~\cite{owens-fbs}, with an error monad. Errors are explicit
 results rather than stuck states, so the theorem ``checked programs never reach
-these errors'' is directly expressible, and the semantics can be \emph{run}
-with \code{value} and \code{eval}. Divergence appears as \code{OutOfFuel}. The
+these errors'' is directly expressible, and the semantics can be \emph{run} with
+the Isabelle \code{value} or \code{eval} commands. 
+Divergence appears as \code{OutOfFuel}. The
 result type is \code{'a res = Ok 'a | Err err | OutOfFuel}.
 
 \emph{The semantics is defined for incorrect programs as well as correct ones.}
@@ -335,7 +377,7 @@ says that the checker rules these errors out. The errors are:
   \code{out self} still uninitialised.
 \item \code{ErrBounds}: an out-of-range list index, including a negative index and
   \code{pop} of an empty list. Mojo also reports this at run time, so it is an
-  error of correct programs too.
+  error of ownership-correct programs too.
 \item \code{ErrUnbound x}, \code{ErrUnknown f}, \code{ErrArity} and
   \code{ErrType msg}: use of an undeclared variable, a call of an unknown function
   or struct, a call with the wrong number of arguments, and an ill-typed operation
@@ -348,9 +390,9 @@ example); the checker rejects them.
 
 The interpreter is one group of 13 mutually recursive functions. Each takes a
 fuel $n$ as its first argument after the fixed program $P$, and each recursive
-call uses one unit of fuel, which makes termination trivial. Calls make
+call uses one unit of fuel, which makes termination trivial. Calls mean that
 expressions depend on statements (a function body is a statement) and statements
-on expressions, hence the single group:
+depend on expressions, hence the single group:
 \begin{center}\small
 \begin{tabular}{@{}ll@{}}
 \toprule
@@ -403,7 +445,8 @@ Here \isa{m {\isasymbind} f} is bind in the error monad (written with \code{do}
 notation in the theory): run the body, then \code{cleanup} the environment that
 the body ended with, and return its result. \code{exec} threads an environment
 and a heap through a statement and returns whether the statement ended normally
-or with a \code{return}; \code{SVar} allocates a fresh root and extends the
+or with a \code{return}.  Most kinds of statements have the usual semantics,
+but \code{SVar} allocates a fresh root and extends the
 environment, \code{SAssign} destroys the old value of the place before storing
 the new one, and \code{SDrop p} calls \code{drop\_path}. \code{drop\_path} runs the
 struct's \code{\_\_deinit\_\_} with \code{self} bound to the location and then
@@ -415,9 +458,9 @@ observable effect, since a destructor can \code{print}. A program is run from
 \usesnip{run_eqn}
 \end{isabelle}
 \end{snippet}
-and the result is the list of printed lines (a line is a list of values). Output
-printed before an error is not part of the result, because the error monad does
-not carry the state.
+and the result is the list of printed lines (a line is a list of values). If a
+program generates an error then just the error is returned and any previous
+printed output is discarded, because the error monad does not carry the state.
 
 \subsection{ASAP Elaboration}\label{sec:sound-intro}
 To keep the dynamic semantics free of last-use analysis, a static pass
@@ -432,7 +475,9 @@ items, in order. Programs without \code{DROP}s still have a C++-like meaning
 after elaboration.
 
 \subsection{Ownership Checker}
-\code{check\_prog} is a flow-sensitive abstract interpretation of each function
+A key aspect of Mojo is its ownership checker.
+The equivalent checker in our formal model is called \code{check\_prog}.
+This performs a flow-sensitive abstract interpretation of each function
 body, with an abstract state recording (i) which owned variables are definitely
 initialised, (ii) which reference bindings may have been invalidated by a
 shape change of a list they point into, and (iii) inside \code{\_\_init\_\_}, which
@@ -683,7 +728,7 @@ syntax theory is \emph{equal} to the hand-written encodings, so the two
 independent encodings cross-check each other.
 
 \paragraph{Recorded results.}
-The driver records, for each test, the compiler's status, standard output and
+The driver records, for each test, the Mojo compiler's status, standard output and
 diagnostics, and the compiler version, in a JSON file. The generated theory
 therefore needs no Mojo installation to be re-evaluated: it is one \code{lemma}
 per program, proved by \code{eval}, and the whole suite builds as an ordinary
@@ -758,9 +803,8 @@ Variable reuse in disjoint scopes (a08) &
 \paragraph{Unused \code{var} parameters.}
 The model dropped an owned parameter only after its last use, so one that was
 never used lived until the callee returned. Mojo destroys it on entry. The fix
-was a small change to the elaboration pass: the body starts with drops of the
-owned parameters that are not live on entry. Because the soundness proofs are
-about the checker and interpreter, not the particular elaboration, the proofs
+was a small change to the ASAP elaboration pass: the body starts with drops of the
+owned parameters that are not live on entry. The soundness proofs
 were unaffected, which we confirmed by rebuilding. (The flip side is that the
 soundness theorem says nothing about the elaboration, as discussed in
 Section~\ref{sec:sound}.)
@@ -785,7 +829,8 @@ regression test for the future fix.
 The interpreter evaluates both operands. Making it short-circuit would change the
 evaluation function and the induction in every soundness case that involves
 boolean operators. Since the difference is observable only when the right-hand
-operand has effects (a call that prints, or an indexing that may fail), we
+operand has effects (a call that prints, or an indexing that may fail),
+and such programs can be rewritten to use if-else instead, we
 narrowed the subset: the translator rejects such programs and explains why. The
 rejected example is kept in a directory of its own, and a unit test checks that it
 stays rejected, so that the restriction cannot silently disappear.
@@ -799,7 +844,10 @@ names to kinds). Again the translator rejects such programs.
 \paragraph{A tooling observation.}
 Evaluating integer arithmetic around $10^9$ with \code{eval} hung on the
 (32-bit-pointer) Poly/ML platform we used, even for plain natural-number
-arithmetic. The translator therefore limits literals to $10^6$ in absolute value.
+arithmetic.  This could be fixed by using the Isabelle \texttt{word} library
+to model all the different fixed-sized integers in Mojo, but we have not
+attempted this yet, as it is independent of the ownership checking.
+The translator therefore limits literals to $10^6$ in absolute value.
 We mention this because a differential test harness has its own trusted base,
 and its failures can look like failures of the semantics.
 
@@ -865,7 +913,7 @@ a language whose semantics is not otherwise specified, and the object under test
 is the formal semantics itself. The use of a clocked definitional interpreter
 follows Owens et al.~\cite{owens-fbs}.
 
-\section{Conclusion and future work}
+\section{Conclusion and future work} \label{sec:concl}
 
 We have shown that a core of Mojo's ownership discipline, including ASAP
 destruction, argument conventions, origins and invalidation of references into
@@ -888,7 +936,7 @@ track the language's evolution.
 
 \section*{Acknowledgements}
 
-The author set the goals, took the design decisions that were put to them
+\textbf{Claude:} The human author set the goals, took the design decisions that were put to them
 (including the choice of a clocked functional big-step semantics and of an
 explicit \code{drop} elaboration), directed each phase (region model,
 subset proposal, syntax, semantics, checker, soundness, differential testing,
@@ -910,9 +958,21 @@ of the empirical results on the Mojo compiler, both independent of the
 assistant that produced the artefacts; the statements of the definitions
 and theorems, the choice of subset and this paper's claims should still be
 read critically by a human. The BibTeX entries were downloaded by Claude from
-Crossref and arXiv by DOI, except for a few hand-written entries (web documents,
-the Isabelle/HOL book and McKeeman's article), which should be checked.
+Crossref and arXiv by DOI, except for a few hand-written entries,
+which were checked by the author.
 
+\textbf{Mark:} Claude wrote all of the Isabelle theories and Python code,
+plus the initial (9-page) draft of the paper.  Additions and improvements to
+the paper were mostly done via prompting, followed by a few minor edits and the
+addition of the \texttt{Background} paragraph in the introduction and this paragraph.
+This project was only possible with the help of an AI assistant like Claude, as the
+12.4kLOC of Isabelle theorems and proofs would correspond to around one person-year
+of human development~\cite{Staples:2014:PPE}, which would be impossible without funding,
+but with Claude and PIDE-MCP the whole development took only 5 hours API time (US\$130) 
+from Claude and around a week of very part-time input from me.  See the \code{prompts.md}
+file in the GitHub repository \cite{mojo-semantics} for all the gory details.
+\begin{small}
 \bibliographystyle{plain}
 \bibliography{references}
+\end{small}
 \end{document}
