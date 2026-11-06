@@ -468,7 +468,7 @@ def main():
     p.scale(2)
     print(p.x, p.y, p.sum())    # 6 12 18\<close>}
   The invalid variant omits @{text "self.y = a * 2"}
-  (error: field 'y' not initialized in __init__).
+  (error: field 'y' not initialized in @{text \<open>__init__\<close>}).
 \<close>
 
 abbreviation "Point \<equiv> TStruct ''Point''"
