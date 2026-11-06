@@ -14,87 +14,87 @@
 \isakeywordONE{datatype}\isamarkupfalse%
 \ place\ {\isacharequal}{\kern0pt}\isanewline
 \ \ \ \ PVar\ vname\ %
-\isamarkupcmt{\isa{x}%
+\hfill\isamarkupcmt{\isa{x}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ PField\ place\ fname\ %
-\isamarkupcmt{\isa{p{\isachardot}{\kern0pt}f}%
+\hfill\isamarkupcmt{\isa{p{\isachardot}{\kern0pt}f}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ PIndex\ place\ expr\ %
-\isamarkupcmt{\isa{p{\isacharbrackleft}{\kern0pt}i{\isacharbrackright}{\kern0pt}}%
+\hfill\isamarkupcmt{\isa{p{\isacharbrackleft}{\kern0pt}i{\isacharbrackright}{\kern0pt}}%
 }\isanewline
 \isakeywordTWO{and}\ expr\ {\isacharequal}{\kern0pt}\isanewline
 \ \ \ \ EInt\ int\ %
-\isamarkupcmt{\isa{{\isadigit{4}}{\isadigit{2}}}%
+\hfill\isamarkupcmt{\isa{{\isadigit{4}}{\isadigit{2}}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ EBool\ bool\ %
-\isamarkupcmt{\isa{True}%
+\hfill\isamarkupcmt{\isa{True}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ EStr\ string\ %
-\isamarkupcmt{\isa{{\isachardoublequote}{\kern0pt}hi{\isachardoublequote}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}only\ as\ a\ print\ argument{\isacharparenright}{\kern0pt}}%
+\hfill\isamarkupcmt{\isa{{\isachardoublequote}{\kern0pt}hi{\isachardoublequote}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}only\ as\ a\ print\ argument{\isacharparenright}{\kern0pt}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ EPlace\ place\ %
-\isamarkupcmt{\isa{x\ \ {\isacharparenleft}{\kern0pt}a\ place\ used\ as\ a\ value{\isacharcomma}{\kern0pt}\ or\ as\ a\ reference\ argument{\isacharparenright}{\kern0pt}}%
+\hfill\isamarkupcmt{\isa{x\ \ {\isacharparenleft}{\kern0pt}a\ place\ used\ as\ a\ value{\isacharcomma}{\kern0pt}\ or\ as\ a\ reference\ argument{\isacharparenright}{\kern0pt}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ ETake\ place\ %
-\isamarkupcmt{\isa{p{\isacharcircum}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}transfer{\isacharparenright}{\kern0pt}}%
+\hfill\isamarkupcmt{\isa{p{\isacharcircum}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}transfer{\isacharparenright}{\kern0pt}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ ECopy\ place\ %
-\isamarkupcmt{\isa{p{\isachardot}{\kern0pt}copy{\isacharparenleft}{\kern0pt}{\isacharparenright}{\kern0pt}}%
+\hfill\isamarkupcmt{\isa{p{\isachardot}{\kern0pt}copy{\isacharparenleft}{\kern0pt}{\isacharparenright}{\kern0pt}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ ECall\ name\ {\isachardoublequoteopen}expr\ list{\isachardoublequoteclose}\ %
-\isamarkupcmt{\isa{f{\isacharparenleft}{\kern0pt}a{\isacharcomma}{\kern0pt}\ b{\isacharparenright}{\kern0pt}\ \ or\ \ Res{\isacharparenleft}{\kern0pt}{\isadigit{1}}{\isacharparenright}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}call\ or\ construction{\isacharparenright}{\kern0pt}}%
+\hfill\isamarkupcmt{\isa{f{\isacharparenleft}{\kern0pt}a{\isacharcomma}{\kern0pt}\ b{\isacharparenright}{\kern0pt}\ \ or\ \ Res{\isacharparenleft}{\kern0pt}{\isadigit{1}}{\isacharparenright}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}call\ or\ construction{\isacharparenright}{\kern0pt}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ EMeth\ place\ name\ {\isachardoublequoteopen}expr\ list{\isachardoublequoteclose}\ %
-\isamarkupcmt{\isa{p{\isachardot}{\kern0pt}m{\isacharparenleft}{\kern0pt}a{\isacharparenright}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}method\ call{\isacharparenright}{\kern0pt}}%
+\hfill\isamarkupcmt{\isa{p{\isachardot}{\kern0pt}m{\isacharparenleft}{\kern0pt}a{\isacharparenright}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}method\ call{\isacharparenright}{\kern0pt}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ EBin\ binop\ expr\ expr\ %
-\isamarkupcmt{\isa{a\ {\isacharplus}{\kern0pt}\ b}%
+\hfill\isamarkupcmt{\isa{a\ {\isacharplus}{\kern0pt}\ b}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ ENot\ expr\ %
-\isamarkupcmt{\isa{not\ e}%
+\hfill\isamarkupcmt{\isa{not\ e}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ ELen\ place\ %
-\isamarkupcmt{\isa{len{\isacharparenleft}{\kern0pt}p{\isacharparenright}{\kern0pt}}%
+\hfill\isamarkupcmt{\isa{len{\isacharparenleft}{\kern0pt}p{\isacharparenright}{\kern0pt}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ EList\ {\isachardoublequoteopen}expr\ list{\isachardoublequoteclose}\ %
-\isamarkupcmt{\isa{{\isacharbrackleft}{\kern0pt}{\isadigit{1}}{\isacharcomma}{\kern0pt}\ {\isadigit{2}}{\isacharcomma}{\kern0pt}\ {\isadigit{3}}{\isacharbrackright}{\kern0pt}}%
+\hfill\isamarkupcmt{\isa{{\isacharbrackleft}{\kern0pt}{\isadigit{1}}{\isacharcomma}{\kern0pt}\ {\isadigit{2}}{\isacharcomma}{\kern0pt}\ {\isadigit{3}}{\isacharbrackright}{\kern0pt}}%
 }%
 }%endsnip
 \snip{ast_stmt}{1}{2}{%
 \isakeywordONE{datatype}\isamarkupfalse%
 \ stmt\ {\isacharequal}{\kern0pt}\isanewline
 \ \ \ \ SPass\ %
-\isamarkupcmt{\isa{pass}%
+\hfill\isamarkupcmt{\isa{pass}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ SSeq\ stmt\ stmt\ %
-\isamarkupcmt{\isa{s{\isadigit{1}}\ followed\ by\ s{\isadigit{2}}}%
+\hfill\isamarkupcmt{\isa{s{\isadigit{1}}\ followed\ by\ s{\isadigit{2}}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ SVar\ vname\ ty\ {\isachardoublequoteopen}expr\ option{\isachardoublequoteclose}\ %
-\isamarkupcmt{\isa{var\ x{\isacharcolon}{\kern0pt}\ T\ {\isacharequal}{\kern0pt}\ e\ \ or\ \ var\ x{\isacharcolon}{\kern0pt}\ T}%
+\hfill\isamarkupcmt{\isa{var\ x{\isacharcolon}{\kern0pt}\ T\ {\isacharequal}{\kern0pt}\ e\ \ or\ \ var\ x{\isacharcolon}{\kern0pt}\ T}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ SRef\ vname\ expr\ %
-\isamarkupcmt{\isa{ref\ r\ {\isacharequal}{\kern0pt}\ e}%
+\hfill\isamarkupcmt{\isa{ref\ r\ {\isacharequal}{\kern0pt}\ e}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ SAssign\ place\ expr\ %
-\isamarkupcmt{\isa{p\ {\isacharequal}{\kern0pt}\ e}%
+\hfill\isamarkupcmt{\isa{p\ {\isacharequal}{\kern0pt}\ e}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ SExpr\ expr\ %
-\isamarkupcmt{\isa{f{\isacharparenleft}{\kern0pt}x{\isacharparenright}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}result\ discarded{\isacharparenright}{\kern0pt}}%
+\hfill\isamarkupcmt{\isa{f{\isacharparenleft}{\kern0pt}x{\isacharparenright}{\kern0pt}\ \ {\isacharparenleft}{\kern0pt}result\ discarded{\isacharparenright}{\kern0pt}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ SPrint\ {\isachardoublequoteopen}expr\ list{\isachardoublequoteclose}\ %
-\isamarkupcmt{\isa{print{\isacharparenleft}{\kern0pt}a{\isacharcomma}{\kern0pt}\ b{\isacharparenright}{\kern0pt}}%
+\hfill\isamarkupcmt{\isa{print{\isacharparenleft}{\kern0pt}a{\isacharcomma}{\kern0pt}\ b{\isacharparenright}{\kern0pt}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ SIf\ expr\ stmt\ stmt\ %
-\isamarkupcmt{\isa{if\ c{\isacharcolon}{\kern0pt}\ s{\isadigit{1}}\ else{\isacharcolon}{\kern0pt}\ s{\isadigit{2}}}%
+\hfill\isamarkupcmt{\isa{if\ c{\isacharcolon}{\kern0pt}\ s{\isadigit{1}}\ else{\isacharcolon}{\kern0pt}\ s{\isadigit{2}}}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ SWhile\ expr\ stmt\ %
-\isamarkupcmt{\isa{while\ c{\isacharcolon}{\kern0pt}\ s}%
+\hfill\isamarkupcmt{\isa{while\ c{\isacharcolon}{\kern0pt}\ s}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ SReturn\ {\isachardoublequoteopen}expr\ option{\isachardoublequoteclose}\ %
-\isamarkupcmt{\isa{return\ e\ \ or\ \ return}%
+\hfill\isamarkupcmt{\isa{return\ e\ \ or\ \ return}%
 }\isanewline
 \ \ {\isacharbar}{\kern0pt}\ SDrop\ place\ %
-\isamarkupcmt{inserted by ASAP elaboration%
+\hfill\isamarkupcmt{inserted by ASAP elaboration%
 }%
 }%endsnip
 \snip{ast_ret}{1}{2}{%
