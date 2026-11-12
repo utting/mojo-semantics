@@ -1749,3 +1749,17 @@ My first edit broke the [14] entry in references.bib with a misplaced brace, and
 I merged paper into main as a fast-forward, so there is no merge commit. main is now at 6d9dd9b, which is paper's tip, with the paper, snippets, bibliography and theory changes. main is 6 commits ahead of origin/main. I haven't pushed anything, so you can review and push when ready.
 
 Your uncommitted prompts.md change and the untracked hello-world/ were not touched. The paper branch still exists. Delete it if you no longer need it.
+
+Session (done a week later - after submitting paper to arxiv and retrieving original draft of paper)
+
+Total cost:            $136.39
+Total duration (API):  4h 54m 39s
+Total duration (wall): 17d 1h 37m
+Total code changes:    2069 lines added, 0 lines removed
+Usage by model:
+    claude-haiku-5-5:  26.5k input, 4.5k output, 0 cache read, 0 cache write ($0.0049)
+     claude-sonnet-5:  310 input, 164.0k output, 21.4m cache read, 273.3k cache write ($7.01)
+     claude-opus-5-5:  184.9k input, 1.1m output, 309.8m cache read, 3.8m cache write ($115.82)
+   claude-sonnet-5-5:  14.5k input, 240.4k output, 49.5m cache read, 1.5m cache write ($13.55)
+Prompt cache (main):   896 requests · 99% of input tokens from cache · 10 misses (last 1h 2m 23s ago, 2.5m tokens re-cached) · 5 expected rebuilds (compaction or tool-result clearing) · warm (1h TTL, last activity 49m 41s ago)
+
